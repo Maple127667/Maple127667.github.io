@@ -18,6 +18,15 @@ test("page progress rail and profile flow stay complete", async () => {
   assert.doesNotMatch(source, /className="about snap-panel/);
 });
 
+test("markdown section numbers stay stable across repeated renders", async () => {
+  const appSource = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
+
+  assert.doesNotMatch(appSource, /headingCursor/);
+  assert.match(appSource, /function remarkHeadingIndexes\(\)/);
+  assert.match(appSource, /"data-heading-index": headingIndex/);
+  assert.match(appSource, /node\?\.properties\?\.dataHeadingIndex/);
+  assert.match(appSource, /remarkPlugins=\{\[remarkGfm, remarkHeadingIndexes\]\}/);
+});
 test("unknown routes render a real 404 state", async () => {
   const source = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
 

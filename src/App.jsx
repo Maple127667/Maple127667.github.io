@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { visit } from "unist-util-visit";
 import {
   ArrowDown,
   ArrowRight,
@@ -425,13 +426,30 @@ function ContentsIndex({ headings }) {
   return <aside><span>CONTENTS</span><ol>{headings.map((heading) => <li key={heading.id}><a href={`#${heading.id}`} onClick={(event) => scrollToHeading(event, heading.id)}>{heading.title}</a></li>)}</ol></aside>;
 }
 
+function remarkHeadingIndexes() {
+  return (tree) => {
+    let headingIndex = 0;
+
+    visit(tree, "heading", (node) => {
+      if (node.depth !== 2) return;
+      node.data = node.data ?? {};
+      node.data.hProperties = {
+        ...node.data.hProperties,
+        "data-heading-index": headingIndex,
+      };
+      headingIndex += 1;
+    });
+  };
+}
+
 function MarkdownContent({ content, headings, endLabel }) {
-  let headingCursor = 0;
   const markdownComponents = {
-    h2({ children }) {
-      const heading = headings[headingCursor];
-      const number = String(headingCursor + 1).padStart(2, "0");
-      headingCursor += 1;
+    h2({ children, node }) {
+      const rawIndex = node?.properties?.dataHeadingIndex ?? node?.properties?.["data-heading-index"];
+      const headingIndex = Number(rawIndex);
+      const safeIndex = Number.isInteger(headingIndex) && headingIndex >= 0 ? headingIndex : 0;
+      const heading = headings[safeIndex];
+      const number = String(safeIndex + 1).padStart(2, "0");
       return <h2 id={heading?.id}><span aria-hidden="true">{number}</span>{children}</h2>;
     },
     a({ href = "", children, ...props }) {
@@ -441,7 +459,7 @@ function MarkdownContent({ content, headings, endLabel }) {
   };
 
   return <div className="article-reader__prose">
-    <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{content}</ReactMarkdown>
+    <ReactMarkdown remarkPlugins={[remarkGfm, remarkHeadingIndexes]} components={markdownComponents}>{content}</ReactMarkdown>
     <footer>{endLabel}</footer>
   </div>;
 }
