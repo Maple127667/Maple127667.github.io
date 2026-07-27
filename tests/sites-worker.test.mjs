@@ -21,7 +21,7 @@ test("serves existing static assets without a fallback", async () => {
 test("falls back to index.html for an unknown app route", async () => {
   const calls = [];
   const response = await worker.fetch(
-    new Request("https://example.test/flow/step-two?source=share", {
+    new Request("https://example.test/articles/three-body?source=share", {
       headers: { accept: "text/html" },
     }),
     {
@@ -38,7 +38,7 @@ test("falls back to index.html for an unknown app route", async () => {
   );
 
   assert.equal(response.status, 200);
-  assert.deepEqual(calls, ["/flow/step-two?source=share", "/index.html"]);
+  assert.deepEqual(calls, ["/articles/three-body?source=share", "/index.html"]);
 });
 
 test("does not turn missing API or write requests into the app shell", async () => {

@@ -9,5 +9,11 @@ test("page progress rail and profile flow stay complete", async () => {
 
   assert.deepEqual(ids, ["top", "projects", "about", "notes", "contact"]);
   assert.match(source, /function ProfileSection\(\)/);
+  assert.match(source, /from "\.\/content\/profile\.js"/);
+  assert.match(source, /from "\.\/content\/projects\/index\.js"/);
+  assert.match(source, /collection = type === "article" \? "articles" : "projects"/);
+  assert.match(source, /function ProjectReader\(/);
+  assert.doesNotMatch(source, /const projects\s*=/);
   assert.doesNotMatch(source, /className="notes-overview/);
+  assert.doesNotMatch(source, /className="about snap-panel/);
 });

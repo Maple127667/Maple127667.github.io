@@ -1,5 +1,5 @@
 ---
-# id 可省略；省略时自动使用文件名
+# id 可省略；省略时自动使用文件名，并成为公开网址的一部分
 id: "article-slug"
 # order 控制文章排序；数字越小越靠前
 order: 5
@@ -30,4 +30,4 @@ console.log("Markdown article");
 
 ## 第二个章节标题
 
-将此文件复制到 `src/content/articles/`，修改文件名与 Frontmatter 后即可发布。
+将此文件复制到 `src/content/articles/`，修改文件名与 Frontmatter 后即可发布到 `/articles/<id>`。

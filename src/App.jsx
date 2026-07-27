@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import * as THREE from "three";
@@ -18,13 +18,8 @@ import {
   featuredArticle,
   formatArticleDate,
 } from "./content/articles/index.js";
-
-const projects = [
-  { id: "01", title: "边界之外", kicker: "WEBGL / 交互体验", year: "2026", description: "一次关于未知与边界的沉浸式旅程。用实时渲染把抽象概念变成可探索的数字空间。", image: "/assets/projects/beyond-boundary.png", align: "right" },
-  { id: "02", title: "流动的城市", kicker: "数据可视化 / 装置", year: "2025", description: "把城市的呼吸、噪声与节奏转译成不断生长的数据景观，让信息拥有可以被感知的温度。", image: "/assets/projects/city-flow.png", align: "left" },
-  { id: "03", title: "生长算法", kicker: "GENERATIVE / 动态影像", year: "2025", description: "探索自然生长与算法规则的共生关系。每一次运算，都生成一段独一无二的数字生命。", image: "/assets/projects/growth-algorithm.png", align: "right" },
-  { id: "04", title: "无界阅读", kicker: "APP DESIGN / UX", year: "2024", description: "一个为深度阅读设计的移动体验，减少界面噪声，让注意力重新回到内容本身。", image: "/assets/projects/unbound-reading.png", align: "left" },
-];
+import { profile, technologyGroups } from "./content/profile.js";
+import { projects } from "./content/projects/index.js";
 
 const sectionRailItems = [
   { id: "top", number: "01", label: "首页" },
@@ -34,12 +29,25 @@ const sectionRailItems = [
   { id: "contact", number: "05", label: "联系" },
 ];
 
-const technologyGroups = [
-  { index: "01", label: "FRONTEND", title: "界面工程", skills: ["React", "JavaScript", "HTML / CSS", "Vite"] },
-  { index: "02", label: "REAL-TIME 3D", title: "创意开发", skills: ["Three.js", "WebGL", "Particle Systems", "Physics"] },
-  { index: "03", label: "EXPERIENCE", title: "交互体验", skills: ["Motion Systems", "Responsive UI", "Accessibility", "Performance"] },
-  { index: "04", label: "WORKFLOW", title: "工程交付", skills: ["Git / GitHub", "Design Systems", "Content Architecture", "Deployment"] },
-];
+function parseContentRoute(pathname = window.location.pathname) {
+  const match = pathname.match(/^\/(articles|projects)\/([^/]+)\/?$/);
+  if (!match) return null;
+
+  try {
+    return {
+      type: match[1] === "articles" ? "article" : "project",
+      id: decodeURIComponent(match[2]),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function contentRoutePath(type, id) {
+  const collection = type === "article" ? "articles" : "projects";
+  return `/${collection}/${encodeURIComponent(id)}`;
+}
+
 function useScrollProgress() {
   useEffect(() => {
     const update = () => {
@@ -1069,10 +1077,10 @@ function Header() {
   </header>;
 }
 
-function ProjectSection({ project }) {
+function ProjectSection({ project, onOpenProject }) {
   return <article className={`project project--${project.align}`} aria-labelledby={`project-${project.id}`}>
-    <div className="project__image-wrap"><img src={project.image} alt={`${project.title}项目视觉`} className="project__image" loading={project.id === "01" ? "eager" : "lazy"} /></div>
-    <div className="project__copy"><span className="project__number">{project.id}</span><p className="project__kicker">{project.kicker}</p><h3 id={`project-${project.id}`}>{project.title}</h3><p className="project__year">{project.year}</p><p className="project__description">{project.description}</p><a className="text-link" href={`#project-${project.id}`}>查看项目 <ArrowRight size={17} weight="bold" aria-hidden="true" /></a></div>
+    <div className="project__image-wrap"><img src={project.cover} alt={`${project.title}项目视觉`} className="project__image" loading={project.index === "01" ? "eager" : "lazy"} /></div>
+    <div className="project__copy"><span className="project__number">{project.index}</span><p className="project__kicker">{project.category}</p><h3 id={`project-${project.id}`}>{project.title}</h3><p className="project__year">{project.year}</p><p className="project__description">{project.excerpt}</p><button type="button" className="text-link" aria-haspopup="dialog" onClick={() => onOpenProject(project.id)}>查看项目 <ArrowRight size={17} weight="bold" aria-hidden="true" /></button></div>
   </article>;
 }
 
@@ -1093,13 +1101,13 @@ function FeaturedEssayInterlude({ article, onOpenArticle }) {
   </aside>;
 }
 
-function ProjectArchive({ items }) {
+function ProjectArchive({ items, onOpenProject }) {
   return <div className="project-archive snap-panel" aria-label="更多项目">
     <div className="project-archive__heading"><p>更多项目 / MORE WORK</p><span>能力的宽度，不需要重复同一种音量。</span></div>
     <div className="project-archive__grid">
       {items.map((project) => <article className="project-card" key={project.id} aria-labelledby={`project-${project.id}`}>
-        <div className="project-card__image"><img src={project.image} alt={`${project.title}项目视觉`} loading="lazy" /></div>
-        <div className="project-card__copy"><span>{project.id} / {project.year}</span><p>{project.kicker}</p><h3 id={`project-${project.id}`}>{project.title}</h3><p>{project.description}</p><a className="text-link" href={`#project-${project.id}`}>查看项目 <ArrowRight size={16} aria-hidden="true" /></a></div>
+        <div className="project-card__image"><img src={project.cover} alt={`${project.title}项目视觉`} loading="lazy" /></div>
+        <div className="project-card__copy"><span>{project.index} / {project.year}</span><p>{project.category}</p><h3 id={`project-${project.id}`}>{project.title}</h3><p>{project.excerpt}</p><button type="button" className="text-link" aria-haspopup="dialog" onClick={() => onOpenProject(project.id)}>查看项目 <ArrowRight size={16} aria-hidden="true" /></button></div>
       </article>)}
     </div>
   </div>;
@@ -1110,10 +1118,10 @@ function ProfileSection() {
     <div className="section-heading"><p><span aria-hidden="true" /> 关于我</p><p className="section-heading__meta">PROFILE / STACK / PRACTICE</p></div>
     <div className="profile__body">
       <div className="profile__intro">
-        <p className="eyebrow">CREATIVE DEVELOPER / 03</p>
-        <h2 id="profile-title">设计是起点，<br />代码让它发生。</h2>
-        <p className="profile__summary">我是 Maple，一名关注数字体验的创意开发者。我在视觉设计、前端工程与实时 3D 的交界处工作，把抽象概念变成可以探索、可以感知的网页体验。</p>
-        <div className="profile__meta"><span><i aria-hidden="true" />AVAILABLE FOR SELECTED PROJECTS</span><span>BASED IN CHINA</span></div>
+        <p className="eyebrow">{profile.role.toUpperCase()} / 03</p>
+        <h2 id="profile-title">{profile.headline[0]}<br />{profile.headline[1]}</h2>
+        <p className="profile__summary">{profile.summary}</p>
+        <div className="profile__meta"><span><i aria-hidden="true" />{profile.availability}</span><span>{profile.location}</span></div>
       </div>
       <div className="profile__stack">
         <div className="profile__stack-heading"><p>技术栈</p><span>SELECTED STACK / CURRENT PRACTICE</span></div>
@@ -1151,11 +1159,10 @@ function NotesSection({ onOpenArticle }) {
     </div>
   </section>;
 }
-function ArticleReader({ article, onClose }) {
-  const closeRef = useRef(null);
 
+function useReaderDialog(isOpen, onClose, closeRef) {
   useEffect(() => {
-    if (!article) return undefined;
+    if (!isOpen) return undefined;
     const previousOverflow = document.body.style.overflow;
     const previousFocus = document.activeElement;
     document.body.style.overflow = "hidden";
@@ -1166,7 +1173,7 @@ function ArticleReader({ article, onClose }) {
         return;
       }
       if (event.key !== "Tab") return;
-      const focusable = [...document.querySelectorAll(".article-reader button, .article-reader a")].filter((element) => !element.hasAttribute("disabled"));
+      const focusable = [...document.querySelectorAll(".content-reader button, .content-reader a")].filter((element) => !element.hasAttribute("disabled"));
       if (!focusable.length) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
@@ -1185,30 +1192,46 @@ function ArticleReader({ article, onClose }) {
       document.body.style.overflow = previousOverflow;
       previousFocus?.focus?.();
     };
-  }, [article, onClose]);
+  }, [isOpen, onClose, closeRef]);
+}
 
-  if (!article) return null;
-
-  let headingCursor = 0;
-  const markdownComponents = {
-    h2({ children }) {
-      const heading = article.headings[headingCursor];
-      const number = String(headingCursor + 1).padStart(2, "0");
-      headingCursor += 1;
-      return <h2 id={heading?.id}><span aria-hidden="true">{number}</span>{children}</h2>;
-    },
-    a({ href = "", children, ...props }) {
-      const isExternal = /^https?:///.test(href);
-      return <a href={href} target={isExternal ? "_blank" : undefined} rel={isExternal ? "noreferrer" : undefined} {...props}>{children}</a>;
-    },
-  };
-
+function ContentsIndex({ headings }) {
   const scrollToHeading = (event, headingId) => {
     event.preventDefault();
     document.getElementById(headingId)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  return <div className="article-reader" role="dialog" aria-modal="true" aria-labelledby="reader-title">
+  return <aside><span>CONTENTS</span><ol>{headings.map((heading) => <li key={heading.id}><a href={`#${heading.id}`} onClick={(event) => scrollToHeading(event, heading.id)}>{heading.title}</a></li>)}</ol></aside>;
+}
+
+function MarkdownContent({ content, headings, endLabel }) {
+  let headingCursor = 0;
+  const markdownComponents = {
+    h2({ children }) {
+      const heading = headings[headingCursor];
+      const number = String(headingCursor + 1).padStart(2, "0");
+      headingCursor += 1;
+      return <h2 id={heading?.id}><span aria-hidden="true">{number}</span>{children}</h2>;
+    },
+    a({ href = "", children, ...props }) {
+      const isExternal = /^https?:\/\//.test(href);
+      return <a href={href} target={isExternal ? "_blank" : undefined} rel={isExternal ? "noreferrer" : undefined} {...props}>{children}</a>;
+    },
+  };
+
+  return <div className="article-reader__prose">
+    <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{content}</ReactMarkdown>
+    <footer>{endLabel}</footer>
+  </div>;
+}
+
+function ArticleReader({ article, onClose }) {
+  const closeRef = useRef(null);
+  useReaderDialog(Boolean(article), onClose, closeRef);
+
+  if (!article) return null;
+
+  return <div className="article-reader content-reader" role="dialog" aria-modal="true" aria-labelledby="article-reader-title">
     <div className="article-reader__bar">
       <p>MAPLE / FIELD NOTES / {article.index}</p>
       <button ref={closeRef} type="button" onClick={onClose} aria-label="关闭文章"><span>返回主页</span><X size={21} aria-hidden="true" /></button>
@@ -1216,14 +1239,36 @@ function ArticleReader({ article, onClose }) {
     <article className="article-reader__document">
       <header className="article-reader__head">
         <p>{article.category}<br />{formatArticleDate(article.date)}<br />{article.readTime}</p>
-        <div><span>ARTICLE / {article.index}</span><h2 id="reader-title">{article.title}</h2><p>{article.excerpt}</p></div>
+        <div><span>ARTICLE / {article.index}</span><h2 id="article-reader-title">{article.title}</h2><p>{article.excerpt}</p></div>
       </header>
       <div className="article-reader__body">
-        <aside><span>CONTENTS</span><ol>{article.headings.map((heading) => <li key={heading.id}><a href={`#${heading.id}`} onClick={(event) => scrollToHeading(event, heading.id)}>{heading.title}</a></li>)}</ol></aside>
-        <div className="article-reader__prose">
-          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{article.body}</ReactMarkdown>
-          <footer>END OF ARTICLE / {article.index}</footer>
-        </div>
+        <ContentsIndex headings={article.headings} />
+        <MarkdownContent content={article.body} headings={article.headings} endLabel={`END OF ARTICLE / ${article.index}`} />
+      </div>
+    </article>
+  </div>;
+}
+
+function ProjectReader({ project, onClose }) {
+  const closeRef = useRef(null);
+  useReaderDialog(Boolean(project), onClose, closeRef);
+
+  if (!project) return null;
+
+  return <div className="article-reader project-reader content-reader" role="dialog" aria-modal="true" aria-labelledby="project-reader-title">
+    <div className="article-reader__bar">
+      <p>MAPLE / PROJECT / {project.index}</p>
+      <button ref={closeRef} type="button" onClick={onClose} aria-label="关闭项目"><span>返回主页</span><X size={21} aria-hidden="true" /></button>
+    </div>
+    <article className="article-reader__document">
+      <header className="article-reader__head project-reader__head">
+        <p>{project.category}<br />{project.year}<br />PROJECT {project.index}</p>
+        <div><span>SELECTED WORK / {project.index}</span><h2 id="project-reader-title">{project.title}</h2><p>{project.excerpt}</p></div>
+      </header>
+      <figure className="project-reader__cover"><img src={project.cover} alt={`${project.title}项目视觉`} /></figure>
+      <div className="article-reader__body">
+        <ContentsIndex headings={project.headings} />
+        <MarkdownContent content={project.body} headings={project.headings} endLabel={`END OF PROJECT / ${project.index}`} />
       </div>
     </article>
   </div>;
@@ -1231,37 +1276,80 @@ function ArticleReader({ article, onClose }) {
 
 export function App() {
   useScrollProgress();
-  const [activeArticleId, setActiveArticleId] = useState(null);
-  const activeArticle = articles.find((article) => article.id === activeArticleId) || null;
-  useFullPageSnap(!activeArticleId);
-  useEffect(() => {
-    const hash = window.location.hash;
-    if (!hash) return undefined;
-    const frame = window.requestAnimationFrame(() => {
-      document.querySelector(hash)?.scrollIntoView({ behavior: "auto", block: "start" });
+  const [contentRoute, setContentRoute] = useState(() => parseContentRoute());
+  const activeArticle = contentRoute?.type === "article" ? articles.find((article) => article.id === contentRoute.id) || null : null;
+  const activeProject = contentRoute?.type === "project" ? projects.find((project) => project.id === contentRoute.id) || null : null;
+  const readerOpen = Boolean(activeArticle || activeProject);
+  useFullPageSnap(!readerOpen);
+
+  const scrollToCurrentHash = useCallback(() => {
+    if (!window.location.hash) return;
+    window.requestAnimationFrame(() => {
+      document.querySelector(window.location.hash)?.scrollIntoView({ behavior: "auto", block: "start" });
     });
-    return () => window.cancelAnimationFrame(frame);
   }, []);
+
+  useEffect(() => {
+    const onPopState = () => {
+      const nextRoute = parseContentRoute();
+      setContentRoute(nextRoute);
+      if (!nextRoute) scrollToCurrentHash();
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [scrollToCurrentHash]);
+
+  useEffect(() => {
+    if (window.location.pathname === "/") scrollToCurrentHash();
+  }, [scrollToCurrentHash]);
+
+  useEffect(() => {
+    if (!contentRoute || readerOpen) return;
+    window.history.replaceState(null, "", "/");
+    setContentRoute(null);
+  }, [contentRoute, readerOpen]);
+
+  const openContent = useCallback((type, id) => {
+    window.history.pushState({ contentOverlay: true }, "", contentRoutePath(type, id));
+    setContentRoute({ type, id });
+  }, []);
+
+  const closeContent = useCallback(() => {
+    const fallbackHash = contentRoute?.type === "project" ? "#projects" : "#notes";
+    if (window.history.state?.contentOverlay) {
+      window.history.back();
+      return;
+    }
+    window.history.replaceState(null, "", `/${fallbackHash}`);
+    setContentRoute(null);
+    window.requestAnimationFrame(() => {
+      document.querySelector(fallbackHash)?.scrollIntoView({ behavior: "auto", block: "start" });
+    });
+  }, [contentRoute]);
+
+  const openArticle = useCallback((id) => openContent("article", id), [openContent]);
+  const openProject = useCallback((id) => openContent("project", id), [openContent]);
+
   return <main id="top">
     <Header />
     <SectionRail />
     <section className="hero snap-panel" aria-labelledby="hero-title">
-
-      <div className="hero__copy"><p className="eyebrow">MAPLE / PORTFOLIO + NOTES 2026</p><h1 id="hero-title">MAPLE <em>/</em><br />CREATIVE<br />DEVELOPER</h1><p className="hero__statement">设计、代码与数字叙事。<br />我做作品，也记录它们如何发生。</p><p className="availability"><span aria-hidden="true" />AVAILABLE FOR PROJECTS</p><a className="primary-button" href="#projects">查看作品 <ArrowUpRight size={18} weight="bold" aria-hidden="true" /></a><p className="location">BASED IN CHINA<br />© MAPLE 2026</p></div>
+      <div className="hero__copy"><p className="eyebrow">{profile.name.toUpperCase()} / PORTFOLIO + NOTES 2026</p><h1 id="hero-title">{profile.name.toUpperCase()} <em>/</em><br />CREATIVE<br />DEVELOPER</h1><p className="hero__statement">{profile.heroStatement[0]}<br />{profile.heroStatement[1]}</p><p className="availability"><span aria-hidden="true" />{profile.availability}</p><a className="primary-button" href="#projects">查看作品 <ArrowUpRight size={18} weight="bold" aria-hidden="true" /></a><p className="location">{profile.location}<br />© {profile.name.toUpperCase()} 2026</p></div>
       <div className="hero__visual"><AsteroidScene /></div>
     </section>
     <section className="projects" id="projects" aria-labelledby="works-title">
       <div className="project-panel snap-panel">
         <div className="section-heading"><p id="works-title"><span aria-hidden="true" /> 我的项目</p><a href="#contact">VIEW ALL WORKS <ArrowRight size={17} aria-hidden="true" /></a></div>
-        <ProjectSection project={projects[0]} />
+        <ProjectSection project={projects[0]} onOpenProject={openProject} />
       </div>
-      <FeaturedEssayInterlude article={featuredArticle} onOpenArticle={setActiveArticleId} />
-      <div className="project-panel snap-panel"><ProjectSection project={projects[1]} /></div>
-      <ProjectArchive items={projects.slice(2)} />
+      <FeaturedEssayInterlude article={featuredArticle} onOpenArticle={openArticle} />
+      <div className="project-panel snap-panel"><ProjectSection project={projects[1]} onOpenProject={openProject} /></div>
+      <ProjectArchive items={projects.slice(2)} onOpenProject={openProject} />
     </section>
-    <NotesSection onOpenArticle={setActiveArticleId} />
-    <section className="about snap-panel" id="about" aria-labelledby="about-title"><p className="eyebrow">ABOUT / 04</p><div className="about__grid"><h2 id="about-title">让技术有形，<br />让体验有感。</h2><div className="about__copy"><p>我是 Maple，一名关注数字体验的创意开发者。喜欢在设计与代码的交界处工作，把视觉、交互与技术变成同一种表达。</p><p>我关心的不只是页面如何被实现，更在意它如何被看见、理解与记住。</p></div><dl className="about__facts"><div><dt>FOCUS</dt><dd>Creative Development</dd></div><div><dt>TOOLKIT</dt><dd>React / WebGL / Motion</dd></div><div><dt>STATUS</dt><dd>Open for selected projects</dd></div></dl></div></section>
-    <section className="contact snap-panel" id="contact" aria-labelledby="contact-title"><p className="eyebrow">CONTACT / 05 / SAY HELLO</p><h2 id="contact-title">一起做点有意思的事 <em>/</em></h2><p>如果你有想法或项目，欢迎随时联系我。</p><div className="contact__links"><a href="mailto:hello@maple.dev"><EnvelopeSimple size={22} aria-hidden="true" />hello@maple.dev</a><a href="https://github.com/Maple127667" target="_blank" rel="noreferrer"><GithubLogo size={22} aria-hidden="true" />Maple127667</a></div><a className="contact__arrow" href="#top" aria-label="返回顶部"><ArrowUpRight size={32} aria-hidden="true" /></a></section>
-    <ArticleReader article={activeArticle} onClose={() => setActiveArticleId(null)} />
+    <ProfileSection />
+    <NotesSection onOpenArticle={openArticle} />
+    <section className="contact snap-panel" id="contact" aria-labelledby="contact-title"><p className="eyebrow">CONTACT / 05 / SAY HELLO</p><h2 id="contact-title">一起做点有意思的事 <em>/</em></h2><p>如果你有想法或项目，欢迎随时联系我。</p><div className="contact__links"><a href={`mailto:${profile.email}`}><EnvelopeSimple size={22} aria-hidden="true" />{profile.email}</a><a href={profile.github.url} target="_blank" rel="noreferrer"><GithubLogo size={22} aria-hidden="true" />{profile.github.label}</a></div><a className="contact__arrow" href="#top" aria-label="返回顶部"><ArrowUpRight size={32} aria-hidden="true" /></a></section>
+    <ArticleReader article={activeArticle} onClose={closeContent} />
+    <ProjectReader project={activeProject} onClose={closeContent} />
   </main>;
 }
