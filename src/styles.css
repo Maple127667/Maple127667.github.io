@@ -128,6 +128,28 @@ button { font: inherit; }
 
 .notes { background: linear-gradient(180deg, #050a12 0%, #070d16 52%, var(--surface) 100%); border-bottom: 1px solid var(--line); }
 .section-heading__meta { color: #7f90a2; }
+.profile { background: radial-gradient(circle at 14% 96%, rgba(53, 83, 114, 0.16), transparent 34%), #050a12; border-bottom: 1px solid var(--line); }
+.profile > .section-heading { height: 72px; }
+.profile__body { height: calc(100% - 72px); min-height: 0; display: grid; grid-template-columns: minmax(0, 1.02fr) minmax(500px, 0.98fr); }
+.profile__intro { min-width: 0; padding: clamp(42px, 6.5vh, 72px) clamp(44px, 6vw, 96px) clamp(34px, 5.5vh, 62px); display: flex; flex-direction: column; border-right: 1px solid var(--line); }
+.profile__intro .eyebrow { margin: 0; color: var(--signal); }
+.profile h2 { max-width: 760px; margin: clamp(32px, 5vh, 54px) 0 0; color: #edf1f4; font: clamp(64px, 6.4vw, 104px) / 0.9 var(--display); letter-spacing: -0.015em; }
+.profile__summary { max-width: 640px; margin: clamp(24px, 3.8vh, 38px) 0 0; color: #a5b0bb; font-size: 16px; line-height: 1.85; }
+.profile__meta { margin-top: auto; padding-top: 22px; display: flex; align-items: center; justify-content: space-between; gap: 20px; color: #8493a3; font: 12px/1.4 var(--mono); letter-spacing: 0.08em; border-top: 1px solid var(--line); }
+.profile__meta span:first-child { display: inline-flex; align-items: center; gap: 10px; color: #a8b9c8; }
+.profile__meta i { width: 6px; height: 6px; display: block; border-radius: 50%; background: var(--signal); box-shadow: 0 0 10px rgba(138, 168, 191, 0.55); }
+.profile__stack { min-width: 0; padding: clamp(38px, 5.6vh, 62px) clamp(36px, 4.6vw, 72px) clamp(30px, 4.8vh, 52px); display: flex; flex-direction: column; }
+.profile__stack-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; }
+.profile__stack-heading p { margin: 0; color: #e4e9ed; font-size: 25px; font-weight: 500; }
+.profile__stack-heading span { color: #8493a3; font: 12px/1.4 var(--mono); letter-spacing: 0.08em; }
+.profile__stack-list { margin: clamp(22px, 3.4vh, 34px) 0 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+.profile__stack-item { padding: clamp(15px, 2.5vh, 24px) 0; display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 14px; border-bottom: 1px solid var(--line); }
+.profile__stack-index { padding-top: 3px; color: var(--signal); font: 12px/1 var(--mono); }
+.profile__stack-item > div { min-width: 0; display: grid; grid-template-columns: minmax(100px, 0.5fr) minmax(110px, 0.55fr) minmax(230px, 1.15fr); gap: 14px; align-items: center; }
+.profile__stack-item > div > p { margin: 0; color: #8493a3; font: 12px/1.35 var(--mono); letter-spacing: 0.07em; }
+.profile__stack-item h3 { margin: 0; color: #e3e8ec; font-size: clamp(22px, 1.8vw, 29px); font-weight: 500; line-height: 1.1; }
+.profile__stack-item ul { min-width: 0; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; list-style: none; }
+.profile__stack-item ul li { min-width: 0; padding: 6px 8px; overflow: hidden; color: #aab6c1; font: 12px/1.2 var(--mono); text-overflow: ellipsis; white-space: nowrap; border: 1px solid rgba(120, 151, 180, 0.18); background: rgba(102, 132, 160, 0.05); }
 .notes__intro { padding: clamp(82px, 9vw, 132px) var(--page) clamp(68px, 7vw, 104px); display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.72fr); gap: 32px 9vw; align-items: end; }
 .notes__intro .eyebrow { grid-column: 1 / -1; margin-bottom: 0; color: var(--signal); }
 .notes__intro h2 { margin: 0; max-width: 880px; color: var(--ink); font: clamp(64px, 7.3vw, 116px) / 0.88 var(--display); letter-spacing: -0.01em; }
@@ -353,10 +375,24 @@ body { overscroll-behavior-y: none; }
   .project-archive.snap-panel .project-card h3 { margin-top: 5px; font-size: clamp(24px, 7.5vw, 32px); }
   .project-archive.snap-panel .project-card__copy > p:nth-of-type(2) { display: none; }
   .project-archive.snap-panel .project-card .text-link { margin-top: auto; font-size: 11px; }
-  .notes-overview > .section-heading { flex-basis: 70px; }
-  .notes-overview .notes__intro { padding: 70px var(--page) 50px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; }
-  .notes-overview .notes__intro h2 { font-size: clamp(58px, 18vw, 82px); }
-  .notes-overview .notes__intro > p:last-child { margin-top: 32px; font-size: 14px; line-height: 1.7; }
+  .profile > .section-heading { height: 70px; }
+  .profile__body { height: calc(100% - 70px); grid-template-columns: 1fr; grid-template-rows: 44% 56%; }
+  .profile__intro { padding: 20px var(--page) 16px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .profile__intro .eyebrow { font-size: 11px; }
+  .profile h2 { margin-top: 10px; font-size: clamp(42px, 12.8vw, 56px); line-height: 0.91; }
+  .profile__summary { margin-top: 14px; font-size: 13px; line-height: 1.55; display: -webkit-box; overflow: hidden; -webkit-line-clamp: 4; -webkit-box-orient: vertical; }
+  .profile__meta { display: none; }
+  .profile__stack { padding: 10px var(--page) 12px; }
+  .profile__stack-heading p { font-size: 18px; }
+  .profile__stack-heading span { font-size: 11px; }
+  .profile__stack-list { margin-top: 9px; }
+  .profile__stack-item { padding: 7px 0; grid-template-columns: 24px minmax(0, 1fr); gap: 8px; }
+  .profile__stack-index { font-size: 11px; }
+  .profile__stack-item > div { grid-template-columns: 78px minmax(0, 1fr); gap: 5px 8px; }
+  .profile__stack-item > div > p { font-size: 11px; }
+  .profile__stack-item h3 { font-size: 17px; }
+  .profile__stack-item ul { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; }
+  .profile__stack-item ul li { padding: 3px 5px; font-size: 11px; }
   .notes__editorial.snap-panel { grid-template-columns: 1fr; grid-template-rows: 42% 58%; }
   .notes__editorial.snap-panel .notes__lead { min-height: 0; padding: 28px var(--page) 24px; border-right: 0; border-bottom: 1px solid var(--line); }
   .notes__editorial.snap-panel .notes__lead h3 { margin-top: auto; font-size: clamp(33px, 9.6vw, 43px); }

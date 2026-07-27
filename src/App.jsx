@@ -29,9 +29,16 @@ const projects = [
 const sectionRailItems = [
   { id: "top", number: "01", label: "首页" },
   { id: "projects", number: "02", label: "作品" },
-  { id: "notes", number: "03", label: "文章" },
-  { id: "about", number: "04", label: "关于" },
+  { id: "about", number: "03", label: "关于" },
+  { id: "notes", number: "04", label: "文章" },
   { id: "contact", number: "05", label: "联系" },
+];
+
+const technologyGroups = [
+  { index: "01", label: "FRONTEND", title: "界面工程", skills: ["React", "JavaScript", "HTML / CSS", "Vite"] },
+  { index: "02", label: "REAL-TIME 3D", title: "创意开发", skills: ["Three.js", "WebGL", "Particle Systems", "Physics"] },
+  { index: "03", label: "EXPERIENCE", title: "交互体验", skills: ["Motion Systems", "Responsive UI", "Accessibility", "Performance"] },
+  { index: "04", label: "WORKFLOW", title: "工程交付", skills: ["Git / GitHub", "Design Systems", "Content Architecture", "Deployment"] },
 ];
 function useScrollProgress() {
   useEffect(() => {
@@ -1057,7 +1064,7 @@ function Header() {
   return <header className="site-header">
     <a className="wordmark" href="#top" aria-label="Maple 首页">MAPLE <span aria-hidden="true" /></a>
     <button className="menu-toggle" type="button" onClick={() => setMenuOpen((value) => !value)} aria-expanded={menuOpen} aria-controls="site-navigation" aria-label={menuOpen ? "关闭菜单" : "打开菜单"}>{menuOpen ? <X size={22} /> : <List size={22} />}</button>
-    <nav id="site-navigation" className={`site-nav${menuOpen ? " is-open" : ""}`} aria-label="主导航"><a href="#projects" onClick={close}>作品</a><a href="#notes" onClick={close}>文章</a><a href="#about" onClick={close}>关于</a><a href="#contact" onClick={close}>联系</a></nav>
+    <nav id="site-navigation" className={`site-nav${menuOpen ? " is-open" : ""}`} aria-label="主导航"><a href="#projects" onClick={close}>作品</a><a href="#about" onClick={close}>关于</a><a href="#notes" onClick={close}>文章</a><a href="#contact" onClick={close}>联系</a></nav>
     <span className="scroll-meter" aria-hidden="true" />
   </header>;
 }
@@ -1098,23 +1105,38 @@ function ProjectArchive({ items }) {
   </div>;
 }
 
+function ProfileSection() {
+  return <section className="profile snap-panel" id="about" aria-labelledby="profile-title">
+    <div className="section-heading"><p><span aria-hidden="true" /> 关于我</p><p className="section-heading__meta">PROFILE / STACK / PRACTICE</p></div>
+    <div className="profile__body">
+      <div className="profile__intro">
+        <p className="eyebrow">CREATIVE DEVELOPER / 03</p>
+        <h2 id="profile-title">设计是起点，<br />代码让它发生。</h2>
+        <p className="profile__summary">我是 Maple，一名关注数字体验的创意开发者。我在视觉设计、前端工程与实时 3D 的交界处工作，把抽象概念变成可以探索、可以感知的网页体验。</p>
+        <div className="profile__meta"><span><i aria-hidden="true" />AVAILABLE FOR SELECTED PROJECTS</span><span>BASED IN CHINA</span></div>
+      </div>
+      <div className="profile__stack">
+        <div className="profile__stack-heading"><p>技术栈</p><span>SELECTED STACK / CURRENT PRACTICE</span></div>
+        <ol className="profile__stack-list">
+          {technologyGroups.map((group) => <li className="profile__stack-item" key={group.index}>
+            <span className="profile__stack-index">{group.index}</span>
+            <div><p>{group.label}</p><h3>{group.title}</h3><ul>{group.skills.map((skill) => <li key={skill}>{skill}</li>)}</ul></div>
+          </li>)}
+        </ol>
+      </div>
+    </div>
+  </section>;
+}
+
 function NotesSection({ onOpenArticle }) {
   const otherArticles = articles.filter((article) => article.id !== featuredArticle.id);
 
   return <section className="notes" id="notes" aria-labelledby="notes-title">
-    <div className="notes-overview snap-panel">
-      <div className="section-heading"><p><span aria-hidden="true" /> 文章与笔记</p><p className="section-heading__meta">WRITING / PROCESS / IDEAS</p></div>
-      <div className="notes__intro">
-        <p className="eyebrow">FIELD NOTES / {String(articles.length).padStart(2, "0")}</p>
-        <h2 id="notes-title">继续阅读，<br />换一种速度。</h2>
-        <p>首页只负责帮你找到重点。真正的长文会进入安静的阅读层，不再挤在作品列表后面。</p>
-      </div>
-    </div>
     <div className="notes__editorial snap-panel">
       <article className="notes__lead">
-        <p className="notes__label">本期精选 / ARTICLE {featuredArticle.index}</p>
+        <p className="notes__label">文章与笔记 / ARTICLE {featuredArticle.index}</p>
         <p className="notes__meta">{featuredArticle.category} · {formatArticleDate(featuredArticle.date)} · {featuredArticle.readTime}</p>
-        <h3>{featuredArticle.title}</h3>
+        <h3 id="notes-title">{featuredArticle.title}</h3>
         <p>{featuredArticle.excerpt}</p>
         <button type="button" className="read-button" aria-haspopup="dialog" onClick={() => onOpenArticle(featuredArticle.id)}>阅读全文 <ArrowUpRight size={18} aria-hidden="true" /></button>
       </article>
@@ -1129,7 +1151,6 @@ function NotesSection({ onOpenArticle }) {
     </div>
   </section>;
 }
-
 function ArticleReader({ article, onClose }) {
   const closeRef = useRef(null);
 

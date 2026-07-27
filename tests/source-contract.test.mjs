@@ -2,11 +2,12 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("page progress rail keeps its five section definitions", async () => {
+test("page progress rail and profile flow stay complete", async () => {
   const source = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
+  const rail = source.match(/const sectionRailItems\s*=\s*\[([\s\S]*?)\];/)?.[1] ?? "";
+  const ids = [...rail.matchAll(/id:\s*["']([^"']+)["']/g)].map((match) => match[1]);
 
-  assert.match(source, /const sectionRailItems\s*=\s*\[/);
-  for (const id of ["top", "projects", "notes", "about", "contact"]) {
-    assert.match(source, new RegExp(`id:\\s*["']${id}["']`));
-  }
+  assert.deepEqual(ids, ["top", "projects", "about", "notes", "contact"]);
+  assert.match(source, /function ProfileSection\(\)/);
+  assert.doesNotMatch(source, /className="notes-overview/);
 });
