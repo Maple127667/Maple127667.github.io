@@ -289,9 +289,19 @@ function Header() {
 }
 
 function ProjectSection({ project, onOpenProject }) {
-  return <article className={`project project--${project.align}`} aria-labelledby={`project-${project.id}`}>
+  return <article className={`project project--${project.align} project--${project.id}`} aria-labelledby={`project-${project.id}`}>
     <div className="project__image-wrap"><img src={project.cover} alt={`${project.title}项目视觉`} className="project__image" loading={project.index === "01" ? "eager" : "lazy"} /></div>
-    <div className="project__copy"><span className="project__number">{project.index}</span><p className="project__kicker">{project.category}</p><h3 id={`project-${project.id}`}>{project.title}</h3><p className="project__year">{project.year}</p><p className="project__description">{project.excerpt}</p><button type="button" className="text-link" aria-haspopup="dialog" onClick={() => onOpenProject(project.id)}>查看项目 <ArrowRight size={17} weight="bold" aria-hidden="true" /></button></div>
+    <div className="project__copy">
+      <span className="project__number">{project.index}</span>
+      <p className="project__kicker">{project.category}</p>
+      <h3 id={`project-${project.id}`}>{project.title}</h3>
+      <div className="project__meta-line">
+        <p className="project__year">{project.year}</p>
+        {project.status && <p className="project__status"><i aria-hidden="true" />{project.status}</p>}
+      </div>
+      <p className="project__description">{project.excerpt}</p>
+      <button type="button" className="text-link" aria-haspopup="dialog" onClick={() => onOpenProject(project.id)}>查看项目 <ArrowRight size={17} weight="bold" aria-hidden="true" /></button>
+    </div>
   </article>;
 }
 
@@ -335,7 +345,7 @@ function ProfileSection() {
         <div className="profile__meta"><span><i aria-hidden="true" />{profile.availability}</span><span>{profile.location}</span></div>
       </div>
       <div className="profile__stack">
-        <div className="profile__stack-heading"><p>技术栈</p><span>SELECTED STACK / CURRENT PRACTICE</span></div>
+        <div className="profile__stack-heading"><p>技术栈</p><span>CORE STACK / VERIFIED PRACTICE</span></div>
         <ol className="profile__stack-list">
           {technologyGroups.map((group) => <li className="profile__stack-item" key={group.index}>
             <span className="profile__stack-index">{group.index}</span>
@@ -474,7 +484,12 @@ function ProjectReader({ project, onClose }) {
     <article className="article-reader__document">
       <header className="article-reader__head project-reader__head">
         <p>{project.category}<br />{project.year}<br />PROJECT {project.index}</p>
-        <div><span>SELECTED WORK / {project.index}</span><h2 id="project-reader-title">{project.title}</h2><p>{project.excerpt}</p></div>
+        <div>
+          <span>SELECTED WORK / {project.index}</span>
+          {project.status && <p className="project-reader__status"><i aria-hidden="true" />{project.status}</p>}
+          <h2 id="project-reader-title">{project.title}</h2>
+          <p>{project.excerpt}</p>
+        </div>
       </header>
       <figure className="project-reader__cover"><img src={project.cover} alt={`${project.title}项目视觉`} /></figure>
       <div className="article-reader__body">

@@ -30,6 +30,7 @@ function createProject(path, source) {
     category: String(data.category),
     excerpt: String(data.excerpt),
     cover: String(data.cover),
+    status: data.status ? String(data.status) : null,
     align: data.align === "left" ? "left" : "right",
     ...parseMarkdownContent(content),
   };

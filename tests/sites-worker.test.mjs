@@ -3,7 +3,7 @@ import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 import worker, { createWorker } from "../worker/index.js";
 
-const contentWorker = createWorker(["/articles/three-body", "/projects/beyond-boundary"]);
+const contentWorker = createWorker(["/articles/three-body", "/projects/search-agent"]);
 
 test("serves existing static assets without a fallback", async () => {
   const calls = [];
@@ -94,5 +94,5 @@ test("emits the files required by Sites packaging", async () => {
   await access(new URL("../dist/.openai/hosting.json", import.meta.url));
   const generatedWorker = await readFile(new URL("../dist/server/index.js", import.meta.url), "utf8");
   assert.match(generatedWorker, /\/articles\/three-body/);
-  assert.match(generatedWorker, /\/projects\/beyond-boundary/);
+  assert.match(generatedWorker, /\/projects\/search-agent/);
 });
