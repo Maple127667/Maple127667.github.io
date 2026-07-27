@@ -180,8 +180,8 @@ button { font: inherit; }
 .article-index:hover > svg { transform: translate(3px, -3px); }
 
 /* Full-page story panels */
-html { scroll-snap-type: y mandatory; overscroll-behavior-y: none; }
-html.is-snap-gesturing { scroll-snap-type: none; scroll-behavior: auto; }
+html { scroll-snap-type: none; overscroll-behavior-y: none; }
+html.is-snap-gesturing { scroll-behavior: auto; }
 body { overscroll-behavior-y: none; }
 .snap-panel { height: 100svh; min-height: 100svh; max-height: 100svh; scroll-snap-align: start; scroll-snap-stop: always; overflow: hidden; }
 .hero.snap-panel { height: 100svh; min-height: 100svh; max-height: 100svh; }
@@ -217,7 +217,7 @@ body { overscroll-behavior-y: none; }
 .article-reader__head > p { margin: 8px 0 0; color: #8493a3; font: 14px/1.9 var(--mono); letter-spacing: 0.09em; }
 .article-reader__head > div > span { color: var(--signal); font: 14px/1 var(--mono); letter-spacing: 0.12em; }
 .project-reader__status { margin: 18px 0 0 !important; display: flex; align-items: center; gap: 9px; color: #aab5bf !important; font: 500 14px/1.5 var(--mono) !important; letter-spacing: 0.025em; }
-.article-reader__head h2 { max-width: 980px; margin: 34px 0 0; color: #f0f2f4; font-size: clamp(64px, 7.4vw, 114px); font-weight: 500; line-height: 0.98; letter-spacing: -0.06em; }
+.article-reader__head h2 { max-width: 980px; margin: 34px 0 0; color: #f0f2f4; font-size: clamp(64px, 7.4vw, 114px); font-weight: 500; line-height: 0.98; letter-spacing: -0.06em; text-wrap: balance; }
 .article-reader__head > div > p { max-width: 760px; margin: 34px 0 0; color: #9ca8b4; font-size: 17px; line-height: 1.9; }
 .project-reader__head { min-height: 500px; }
 .project-reader__cover { height: clamp(360px, 45vw, 650px); margin: 0 var(--page); overflow: hidden; border: 1px solid var(--line); background: var(--surface-raised); }

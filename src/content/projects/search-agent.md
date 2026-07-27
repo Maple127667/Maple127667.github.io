@@ -4,7 +4,7 @@ order: 1
 title: "Search Agent"
 year: "2026"
 category: "AI SYSTEM / 检索工程"
-excerpt: "从接近三分钟的 Agent 检索出发，参考 23 篇论文，用固定测试集和消融实验构建一套渐进式、可引用的个人 Search Agent。"
+excerpt: "从接近三分钟的 Agent 检索出发，参考 23 篇论文，到20s的检索，用固定测试集和消融实验构建一套渐进式、可引用的个人 Search Agent。"
 cover: "/assets/projects/search-agent.webp"
 status: "ACTIVE DEVELOPMENT / 快速迭代中"
 align: "right"

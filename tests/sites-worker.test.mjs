@@ -3,7 +3,7 @@ import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 import worker, { createWorker } from "../worker/index.js";
 
-const contentWorker = createWorker(["/articles/three-body", "/projects/search-agent"]);
+const contentWorker = createWorker(["/articles/vibe-coding", "/projects/search-agent"]);
 
 test("serves existing static assets without a fallback", async () => {
   const calls = [];
@@ -23,7 +23,7 @@ test("serves existing static assets without a fallback", async () => {
 test("serves the app shell for a known shareable content route", async () => {
   const calls = [];
   const response = await contentWorker.fetch(
-    new Request("https://example.test/articles/three-body?source=share", {
+    new Request("https://example.test/articles/vibe-coding?source=share", {
       headers: { accept: "text/html" },
     }),
     {
@@ -40,7 +40,7 @@ test("serves the app shell for a known shareable content route", async () => {
   );
 
   assert.equal(response.status, 200);
-  assert.deepEqual(calls, ["/articles/three-body?source=share", "/index.html"]);
+  assert.deepEqual(calls, ["/articles/vibe-coding?source=share", "/index.html"]);
 });
 
 test("returns the app shell with a true 404 status for an unknown page", async () => {
@@ -93,6 +93,6 @@ test("emits the files required by Sites packaging", async () => {
   await access(new URL("../dist/server/index.js", import.meta.url));
   await access(new URL("../dist/.openai/hosting.json", import.meta.url));
   const generatedWorker = await readFile(new URL("../dist/server/index.js", import.meta.url), "utf8");
-  assert.match(generatedWorker, /\/articles\/three-body/);
+  assert.match(generatedWorker, /\/articles\/vibe-coding/);
   assert.match(generatedWorker, /\/projects\/search-agent/);
 });

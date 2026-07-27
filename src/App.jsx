@@ -97,8 +97,10 @@ function useFullPageSnap(enabled) {
     let unlockTimer;
     let settleTimer;
     let resizeTimer;
+    let wheelReleaseTimer;
     let wheelDistance = 0;
     let gestureIndex = null;
+    let wheelGestureConsumed = false;
     let touchStartY = 0;
     let touchDistance = 0;
     let touchIndex = null;
@@ -142,7 +144,13 @@ function useFullPageSnap(enabled) {
     const onWheel = (event) => {
       if (isReaderEvent(event) || event.ctrlKey) return;
       event.preventDefault();
-      if (window.performance.now() < lockedUntil) return;
+      window.clearTimeout(wheelReleaseTimer);
+      wheelReleaseTimer = window.setTimeout(() => {
+        wheelGestureConsumed = false;
+        wheelDistance = 0;
+        gestureIndex = null;
+      }, 180);
+      if (wheelGestureConsumed || window.performance.now() < lockedUntil) return;
       if (gestureIndex === null) gestureIndex = nearestIndex();
       const multiplier = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
       wheelDistance += event.deltaY * multiplier;
@@ -151,6 +159,7 @@ function useFullPageSnap(enabled) {
       window.clearTimeout(settleTimer);
       if (Math.abs(wheelDistance) >= threshold) {
         const direction = wheelDistance > 0 ? 1 : -1;
+        wheelGestureConsumed = true;
         snapTo(gestureIndex + direction);
       } else {
         const returnIndex = gestureIndex;
@@ -197,7 +206,7 @@ function useFullPageSnap(enabled) {
 
     const onResize = () => {
       window.clearTimeout(resizeTimer);
-      resizeTimer = window.setTimeout(() => snapTo(nearestIndex()), 120);
+      resizeTimer = window.setTimeout(() => setSnapMetadata(nearestIndex()), 120);
     };
 
     setSnapMetadata(nearestIndex());
@@ -211,6 +220,7 @@ function useFullPageSnap(enabled) {
       window.clearTimeout(unlockTimer);
       window.clearTimeout(settleTimer);
       window.clearTimeout(resizeTimer);
+      window.clearTimeout(wheelReleaseTimer);
       root.classList.remove("is-snap-gesturing");
       window.removeEventListener("wheel", onWheel);
       window.removeEventListener("touchstart", onTouchStart);
