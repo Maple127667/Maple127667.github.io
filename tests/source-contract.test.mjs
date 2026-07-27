@@ -27,6 +27,13 @@ test("markdown section numbers stay stable across repeated renders", async () =>
   assert.match(appSource, /node\?\.properties\?\.dataHeadingIndex/);
   assert.match(appSource, /remarkPlugins=\{\[remarkGfm, remarkHeadingIndexes\]\}/);
 });
+test("small interface type stays above the legibility floor", async () => {
+  const cssSource = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+
+  assert.match(cssSource, /ibm-plex-mono\/500\.css/);
+  assert.doesNotMatch(cssSource, /font:\s*(?:10|11|12)px\//);
+  assert.doesNotMatch(cssSource, /font-size:\s*(?:10|11|12)px/);
+});
 test("unknown routes render a real 404 state", async () => {
   const source = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
 
