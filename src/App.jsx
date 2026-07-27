@@ -26,6 +26,13 @@ const projects = [
   { id: "04", title: "无界阅读", kicker: "APP DESIGN / UX", year: "2024", description: "一个为深度阅读设计的移动体验，减少界面噪声，让注意力重新回到内容本身。", image: "/assets/projects/unbound-reading.png", align: "left" },
 ];
 
+const sectionRailItems = [
+  { id: "top", number: "01", label: "首页" },
+  { id: "projects", number: "02", label: "作品" },
+  { id: "notes", number: "03", label: "文章" },
+  { id: "about", number: "04", label: "关于" },
+  { id: "contact", number: "05", label: "联系" },
+];
 function useScrollProgress() {
   useEffect(() => {
     const update = () => {
@@ -1237,36 +1244,3 @@ export function App() {
     <ArticleReader article={activeArticle} onClose={() => setActiveArticleId(null)} />
   </main>;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
