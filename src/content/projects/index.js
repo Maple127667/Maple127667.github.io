@@ -28,6 +28,13 @@ function createProject(path, source) {
     title: String(data.title),
     headline: data.headline ? String(data.headline) : String(data.title),
     year: String(data.year),
+    link: data.linkUrl
+      ? {
+          url: String(data.linkUrl),
+          label: String(data.linkLabel || "访问项目"),
+          type: data.linkType === "github" ? "github" : "website",
+        }
+      : null,
     category: String(data.category),
     excerpt: String(data.excerpt),
     cover: String(data.cover),

@@ -9,6 +9,7 @@ import {
   EnvelopeSimple,
   GithubLogo,
   List,
+  WechatLogo,
   X,
 } from "@phosphor-icons/react";
 import {
@@ -340,9 +341,25 @@ function ProjectSection({ project, onOpenProject }) {
         {project.status && <p className="project__status"><i aria-hidden="true" />{project.status}</p>}
       </div>
       <p className="project__description">{project.excerpt}</p>
-      <button type="button" className="text-link" aria-haspopup="dialog" onClick={() => onOpenProject(project.id)}>查看项目 <ArrowRight size={17} weight="bold" aria-hidden="true" /></button>
+      <ProjectActions project={project} onOpenProject={onOpenProject} />
     </div>
   </article>;
+}
+
+function ProjectExternalLink({ project, compact = false }) {
+  if (!project.link) return null;
+
+  return <a className={`project-external-link${compact ? " project-external-link--compact" : ""}`} href={project.link.url} target="_blank" rel="noreferrer">
+    {project.link.type === "github" ? <GithubLogo size={18} aria-hidden="true" /> : <ArrowUpRight size={18} aria-hidden="true" />}
+    <span>{project.link.label}</span>
+  </a>;
+}
+
+function ProjectActions({ project, onOpenProject, compact = false }) {
+  return <div className={`project-actions${compact ? " project-actions--compact" : ""}`}>
+    <button type="button" className="text-link" aria-haspopup="dialog" onClick={() => onOpenProject(project.id)}>查看项目 <ArrowRight size={compact ? 16 : 17} weight="bold" aria-hidden="true" /></button>
+    <ProjectExternalLink project={project} compact={compact} />
+  </div>;
 }
 
 function FeaturedEssayInterlude({ article, onOpenArticle }) {
@@ -375,7 +392,7 @@ function ProjectArchive({ items, onOpenProject }) {
     <div className={`project-archive__grid${items.length === 1 ? " project-archive__grid--single" : ""}`}>
       {items.map((project) => <article className={`project-card project-card--${project.id}`} key={project.id} aria-labelledby={`project-${project.id}`}>
         <div className="project-card__image"><img src={project.cover} alt={`${project.title}项目视觉`} loading="lazy" /></div>
-        <div className="project-card__copy"><span>{project.index} / {project.year}</span><p>{project.category}</p><h3 id={`project-${project.id}`}>{project.title}</h3><p>{project.excerpt}</p><button type="button" className="text-link" aria-haspopup="dialog" onClick={() => onOpenProject(project.id)}>查看项目 <ArrowRight size={16} aria-hidden="true" /></button></div>
+        <div className="project-card__copy"><span>{project.index} / {project.year}</span><p>{project.category}</p><h3 id={`project-${project.id}`}>{project.title}</h3><p>{project.excerpt}</p><ProjectActions project={project} onOpenProject={onOpenProject} compact /></div>
       </article>)}
     </div>
   </div>;
@@ -561,6 +578,7 @@ function ProjectReader({ project, onClose }) {
         </div>
       </header>
       <figure className={`project-reader__cover project-reader__cover--${project.id}`}><img src={project.cover} alt={`${project.title}项目视觉`} /></figure>
+          <ProjectExternalLink project={project} />
       <div className="article-reader__body">
         <ContentsIndex headings={project.headings} />
         <MarkdownContent content={project.body} headings={project.headings} endLabel={`END OF PROJECT / ${project.index}`} />
@@ -695,7 +713,23 @@ export function App() {
     </section>
     <ProfileSection />
     <NotesSection onOpenArticle={openArticle} />
-    <section className="contact snap-panel" id="contact" aria-labelledby="contact-title"><p className="eyebrow">CONTACT / 05 / SAY HELLO</p><h2 id="contact-title">一起做点有意思的事 <em>/</em></h2><p>如果你有想法或项目，欢迎随时联系我。</p><div className="contact__links"><a href={`mailto:${profile.email}`}><EnvelopeSimple size={22} aria-hidden="true" />{profile.email}</a><a href={profile.github.url} target="_blank" rel="noreferrer"><GithubLogo size={22} aria-hidden="true" />{profile.github.label}</a></div><a className="contact__arrow" href="#top" aria-label="返回顶部"><ArrowUpRight size={32} aria-hidden="true" /></a></section>
+    <section className="contact snap-panel" id="contact" aria-labelledby="contact-title">
+      <div className="contact__copy">
+        <p className="eyebrow">CONTACT / 05 / SAY HELLO</p>
+        <h2 id="contact-title">一起做点有意思的事 <em>/</em></h2>
+        <p>如果你有想法或项目，欢迎随时联系我。</p>
+        <div className="contact__links">
+          <a href={`mailto:${profile.email}`}><EnvelopeSimple size={22} aria-hidden="true" /><span><small>EMAIL</small>{profile.email}</span></a>
+          <a href={profile.github.url} target="_blank" rel="noreferrer"><GithubLogo size={22} aria-hidden="true" /><span><small>GITHUB</small>{profile.github.label}</span></a>
+          <span className="contact__wechat-id"><WechatLogo size={22} aria-hidden="true" /><span><small>WECHAT</small>{profile.wechat.label}</span></span>
+        </div>
+      </div>
+      <figure className="contact__qr">
+        <div><img src={profile.wechat.qr} alt={`微信 ${profile.wechat.label} 的二维码`} loading="lazy" /></div>
+        <figcaption><WechatLogo size={18} aria-hidden="true" /><span>扫码添加微信<strong>{profile.wechat.label}</strong></span></figcaption>
+      </figure>
+      <a className="contact__arrow" href="#top" aria-label="返回顶部"><ArrowUpRight size={32} aria-hidden="true" /></a>
+    </section>
     <ArticleReader article={activeArticle} onClose={closeContent} />
     <ProjectReader project={activeProject} onClose={closeContent} />
   </main>;

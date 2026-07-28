@@ -49,6 +49,8 @@ export default function AsteroidScene() {
       alpha: true,
       powerPreference: "high-performance",
     });
+    renderer.setClearColor(0x000000, 0);
+    renderer.setClearAlpha(0);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, isCompact ? 1.3 : 1.7));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;

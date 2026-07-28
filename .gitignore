@@ -1,5 +1,31 @@
+# Dependencies and generated website output
 node_modules/
 dist/
-.vite-*.log
+coverage/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.local
+
+# Operating-system and editor files
 .DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local logs and temporary output
+*.log
+*.log.*
+tmp/
+temp/
+
+# Codex and design-review working material (not part of the website)
+AGENTS.md
+.agents/
+.codex/
+design-audit/
 design-reference/
+design-qa.md
+screenshots/

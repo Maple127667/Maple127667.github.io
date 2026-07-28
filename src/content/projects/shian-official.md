@@ -8,6 +8,9 @@ category: "CHATBOT / 社群产品"
 excerpt: "生活在一千多个群聊、接触过五千多名用户：真正重要的不是展示所有能力，而是在真实聊天中学会克制、维护与倾听反馈。"
 cover: "/assets/projects/shian-official-transparent-v2.png"
 status: "ACTIVE / 持续维护中"
+linkUrl: "https://shian-manual.top/"
+linkLabel: "查看使用手册"
+linkType: "website"
 align: "left"
 ---
 

@@ -71,6 +71,8 @@ test("Three.js lives behind a deferred dynamic import", async () => {
   ]);
 
   assert.match(appSource, /lazy\(\(\) => import\("\.\/AsteroidScene\.jsx"\)\)/);
+  assert.match(sceneSource, /renderer\.setClearColor\(0x000000, 0\)/);
+  assert.match(sceneSource, /renderer\.setClearAlpha\(0\)/);
   assert.match(appSource, /requestIdleCallback/);
   assert.doesNotMatch(appSource, /from "three"/);
   assert.match(sceneSource, /from "three"/);
@@ -103,4 +105,33 @@ test("returning from a reader cannot consume residual scrolling", async () => {
   assert.match(appSource, /contentReturnY: returnScrollY/);
   assert.match(appSource, /restoreReaderReturnPosition\(returnScrollY\)/);
   assert.match(appSource, /skipHashRestoreRef\.current = true/);
+});
+
+test("published projects expose their primary external destinations", async () => {
+  const [appSource, indexSource, searchSource, shianSource, maibotSource] = await Promise.all([
+    readFile(new URL("../src/App.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/content/projects/index.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/content/projects/search-agent.md", import.meta.url), "utf8"),
+    readFile(new URL("../src/content/projects/shian-official.md", import.meta.url), "utf8"),
+    readFile(new URL("../src/content/projects/maibot.md", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(indexSource, /linkUrl/);
+  assert.match(appSource, /function ProjectExternalLink\(/);
+  assert.match(searchSource, /github\.com\/Maple127667\/search_agent/);
+  assert.match(shianSource, /https:\/\/shian-manual\.top\//);
+  assert.match(maibotSource, /github\.com\/Maple127667\/MaiBot/);
+});
+
+test("contact details use the published email and WeChat QR identity", async () => {
+  const [appSource, profileSource] = await Promise.all([
+    readFile(new URL("../src/App.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/content/profile.js", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(profileSource, /1276679255@qq\.com/);
+  assert.match(profileSource, /Maple127667/);
+  assert.match(profileSource, /wechat-maple127667\.jpg/);
+  assert.match(appSource, /className="contact__qr"/);
+  assert.match(appSource, /WechatLogo/);
 });

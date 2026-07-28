@@ -6,7 +6,11 @@ export const profile = {
   summary: "我是 Maple，一名专注于 AI 应用与 Agent 系统的创意型工程师。我擅长使用 Python、TypeScript 与现代 Web 技术，把模型能力、工具调用、检索、消息系统和前后端界面整合成可运行、可维护、可交付的软件产品。我既关注底层机制与工程质量，也重视开发者体验、技术文档和开源协作，喜欢从模糊的想法出发，落地为真正能够被使用、被理解并持续扩展的工程。",
   availability: "AVAILABLE FOR SELECTED PROJECTS",
   location: "BASED IN CHINA",
-  email: "hello@maple.dev",
+  email: "1276679255@qq.com",
+  wechat: {
+    label: "Maple127667",
+    qr: "/assets/contact/wechat-maple127667.jpg",
+  },
   github: {
     label: "Maple127667",
     url: "https://github.com/Maple127667",

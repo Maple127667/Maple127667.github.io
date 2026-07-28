@@ -8,6 +8,9 @@ excerpt: "从接近三分钟的 Agent 检索出发，参考 23 篇论文，到20
 cover: "/assets/projects/search-agent.webp"
 status: "ACTIVE DEVELOPMENT / 快速迭代中"
 align: "right"
+linkUrl: "https://github.com/Maple127667/search_agent"
+linkLabel: "GitHub 仓库"
+linkType: "github"
 ---
 
 > 从三分钟检索、Vibe Coding 和23篇论文，到一个渐进式的个人 Search Agent
