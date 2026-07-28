@@ -54,3 +54,14 @@ test("Three.js lives behind a deferred dynamic import", async () => {
   assert.doesNotMatch(appSource, /from "three"/);
   assert.match(sceneSource, /from "three"/);
 });
+test("featured essay title keeps its semantic two-line break", async () => {
+  const [appSource, cssSource] = await Promise.all([
+    readFile(new URL("../src/App.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/styles.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(appSource, /titleBreakIndex = article\.title\.indexOf\("："\)/);
+  assert.match(appSource, /className="featured-note__title-line"/);
+  assert.match(cssSource, /\.featured-note__title-line \{ display: block; \}/);
+  assert.match(cssSource, /@media \(min-width: 761px\)[\s\S]*?\.featured-note__title-line \{ white-space: nowrap; \}/);
+});

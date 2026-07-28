@@ -317,6 +317,10 @@ function ProjectSection({ project, onOpenProject }) {
 }
 
 function FeaturedEssayInterlude({ article, onOpenArticle }) {
+  const titleBreakIndex = article.title.indexOf("：");
+  const titleLead = titleBreakIndex >= 0 ? article.title.slice(0, titleBreakIndex + 1) : article.title;
+  const titleTail = titleBreakIndex >= 0 ? article.title.slice(titleBreakIndex + 1).trim() : "";
+
   return <aside className="featured-note snap-panel" aria-labelledby="featured-note-title">
     <div className="featured-note__meta">
       <p>FEATURED ESSAY / {article.index}</p>
@@ -326,7 +330,10 @@ function FeaturedEssayInterlude({ article, onOpenArticle }) {
     </div>
     <div className="featured-note__content">
       <p className="featured-note__eyebrow">作品之间，换一种速度</p>
-      <h3 id="featured-note-title">{article.title}</h3>
+      <h3 id="featured-note-title">
+        <span className="featured-note__title-line">{titleLead}</span>
+        {titleTail && <span className="featured-note__title-line">{titleTail}</span>}
+      </h3>
       <p>{article.excerpt}</p>
       <button type="button" className="read-button" aria-haspopup="dialog" onClick={() => onOpenArticle(article.id)}>进入阅读模式 <ArrowUpRight size={18} aria-hidden="true" /></button>
     </div>

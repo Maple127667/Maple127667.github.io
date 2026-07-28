@@ -119,9 +119,13 @@ button { font: inherit; }
 .featured-note__meta { align-self: stretch; padding: 8px 0 0 22px; display: flex; flex-direction: column; border-left: 1px solid rgba(138, 168, 191, 0.52); }
 .featured-note__meta p { margin: 0 0 auto; color: var(--signal); font: 14px/1.4 var(--mono); letter-spacing: 0.12em; }
 .featured-note__meta span { margin-top: 13px; color: #8493a3; font: 14px/1.4 var(--mono); letter-spacing: 0.08em; }
-.featured-note__content { max-width: 900px; }
+.featured-note__content { max-width: 1160px; }
 .featured-note__eyebrow { margin: 0 0 20px !important; color: #75879a !important; font: 14px/1.4 var(--mono) !important; letter-spacing: 0.12em; }
-.featured-note h3 { max-width: 860px; margin: 0; color: #edf0f3; font-size: clamp(48px, 5.4vw, 84px); font-weight: 500; line-height: 1.06; letter-spacing: -0.055em; }
+.featured-note h3 { max-width: 1120px; margin: 0; color: #edf0f3; font-size: clamp(42px, 4.1vw, 72px); font-weight: 500; line-height: 1.06; letter-spacing: -0.055em; }
+.featured-note__title-line { display: block; }
+@media (min-width: 761px) {
+  .featured-note__title-line { white-space: nowrap; }
+}
 .featured-note__content > p:not(.featured-note__eyebrow) { max-width: 660px; margin: 28px 0 0; color: #9da8b3; font-size: 16px; line-height: 1.9; }
 .read-button { width: fit-content; margin-top: 34px; padding: 0 0 9px; display: inline-flex; align-items: center; gap: 14px; color: #d2dbe3; border: 0; border-bottom: 1px solid rgba(138, 168, 191, 0.58); background: transparent; font: 500 14px/1.25 var(--mono); letter-spacing: 0.02em; cursor: pointer; transition: color 180ms ease, border-color 180ms ease; }
 .read-button svg { color: var(--signal); transition: transform 180ms ease; }
