@@ -133,5 +133,8 @@ test("contact details use the published email and WeChat QR identity", async () 
   assert.match(profileSource, /Maple127667/);
   assert.match(profileSource, /wechat-maple127667\.jpg/);
   assert.match(appSource, /className="contact__qr"/);
+  assert.match(appSource, /function WechatDialog/);
+  assert.match(appSource, /aria-haspopup="dialog"/);
+  assert.doesNotMatch(appSource, /扫码添加微信/);
   assert.match(appSource, /WechatLogo/);
 });

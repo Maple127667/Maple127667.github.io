@@ -550,7 +550,7 @@ body { overscroll-behavior-y: none; }
 .project-card .project-actions .text-link { margin-top: 0; }
 .project-reader__head .project-external-link { width: fit-content; margin-top: 28px; }
 
-.contact.snap-panel { grid-template-columns: minmax(0, 1fr) clamp(220px, 18vw, 286px); gap: clamp(44px, 6vw, 96px); align-items: center; justify-content: initial; }
+.contact.snap-panel { grid-template-columns: minmax(0, 1fr); align-items: center; justify-content: initial; }
 .contact__copy { min-width: 0; }
 .contact__copy h2 { max-width: 1060px; font-size: clamp(72px, 8.8vw, 142px); }
 .contact__copy > p:not(.eyebrow) { margin: 24px 0 0; color: #909ca8; font-size: 15px; line-height: 1.75; }
@@ -561,13 +561,22 @@ body { overscroll-behavior-y: none; }
 .contact__wechat-id > span { display: grid; gap: 5px; }
 .contact__links small,
 .contact__wechat-id small { color: #6f8091; font: 600 13px/1 var(--ui); letter-spacing: 0.08em; }
-.contact__wechat-id { cursor: default; }
+.contact__wechat-id { padding: 0; border: 0; background: transparent; text-align: left; cursor: pointer; transition: color 180ms ease; }
+.contact__wechat-id:hover { color: var(--signal); }
+.contact__wechat-id:focus-visible { outline: 1px solid var(--signal); outline-offset: 7px; }
 .contact__qr { width: clamp(220px, 18vw, 286px); margin: 0; }
 .contact__qr > div { width: 100%; aspect-ratio: 1; overflow: hidden; background: #ffffff; border: 10px solid #ffffff; box-shadow: 0 24px 70px rgba(0, 0, 0, 0.44), 0 0 0 1px rgba(138, 168, 191, 0.28); }
 .contact__qr img { width: 100%; height: auto; display: block; transform: translateY(-21%); }
 .contact__qr figcaption { margin-top: 16px; display: flex; align-items: center; gap: 10px; color: #aeb8c1; font: 500 14px/1.35 var(--ui); }
 .contact__qr figcaption span { display: grid; gap: 3px; }
 .contact__qr figcaption strong { color: #e0e6eb; font-size: 13px; font-weight: 500; }
+.wechat-dialog { position: fixed; z-index: 120; inset: 0; padding: 24px; display: grid; place-items: center; background: rgba(1, 4, 9, 0.78); backdrop-filter: blur(14px); }
+.wechat-dialog__panel { position: relative; width: min(410px, calc(100vw - 48px)); padding: 34px; color: var(--ink); border: 1px solid rgba(138, 168, 191, 0.28); background: linear-gradient(145deg, #08111d, #03070d 72%); box-shadow: 0 40px 110px rgba(0, 0, 0, 0.72); }
+.wechat-dialog__panel::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at 78% 18%, rgba(80, 121, 159, 0.16), transparent 42%); }
+.wechat-dialog__close { position: absolute; z-index: 1; top: 18px; right: 18px; width: 44px; height: 44px; display: grid; place-items: center; color: #cbd4dc; border: 1px solid rgba(138, 168, 191, 0.24); background: rgba(3, 7, 13, 0.66); cursor: pointer; }
+.wechat-dialog__close:hover { color: var(--signal); border-color: var(--signal); }
+.wechat-dialog__eyebrow { position: relative; margin: 0 0 9px; color: var(--signal); font: 600 13px/1 var(--ui); letter-spacing: 0.1em; }
+.wechat-dialog .contact__qr { position: relative; width: 100%; }
 
 @media (max-width: 760px) {
   body { overflow-x: hidden; }
@@ -637,9 +646,9 @@ body { overscroll-behavior-y: none; }
   .contact__links a:first-child { grid-column: 1 / -1; }
   .contact__links a > span,
   .contact__wechat-id > span { min-width: 0; }
-  .contact__qr { width: 100%; margin-top: 22px; display: flex; align-items: center; gap: 18px; }
-  .contact__qr > div { width: clamp(136px, 42vw, 168px); flex: 0 0 auto; border-width: 7px; }
-  .contact__qr figcaption { margin: 0; }
+  .wechat-dialog { padding: 16px; }
+  .wechat-dialog__panel { width: min(360px, calc(100vw - 32px)); padding: 26px; }
+  .wechat-dialog .contact__qr > div { border-width: 7px; }
   .contact__arrow { width: 52px; height: 52px; right: var(--page); bottom: 24px; }
 }
 
@@ -671,8 +680,6 @@ body { overscroll-behavior-y: none; }
   .contact__copy h2 { font-size: clamp(48px, 14vw, 62px); }
   .contact__copy > p:not(.eyebrow) { margin-top: 10px; }
   .contact__links { margin-top: 13px; }
-  .contact__qr { margin-top: 13px; }
-  .contact__qr > div { width: 118px; }
   .contact__arrow { display: none; }
 }
 

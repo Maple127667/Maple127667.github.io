@@ -602,15 +602,43 @@ function NotFoundPage({ path, onGoHome }) {
   </main>;
 }
 
+function WechatDialog({ open, onClose }) {
+  const closeRef = useRef(null);
+  useReaderDialog(open, onClose, closeRef);
+
+  if (!open) return null;
+
+  return <div
+    className="wechat-dialog content-reader"
+    role="dialog"
+    aria-modal="true"
+    aria-label="微信二维码"
+    onMouseDown={(event) => {
+      if (event.target === event.currentTarget) onClose();
+    }}
+  >
+    <div className="wechat-dialog__panel">
+      <button ref={closeRef} className="wechat-dialog__close" type="button" onClick={onClose} aria-label="关闭微信二维码">
+        <X size={21} aria-hidden="true" />
+      </button>
+      <p className="wechat-dialog__eyebrow">WECHAT / CONTACT</p>
+      <figure className="contact__qr">
+        <div><img src={profile.wechat.qr} alt={`微信 ${profile.wechat.label} 的二维码`} /></div>
+        <figcaption><WechatLogo size={18} aria-hidden="true" /><span>微信号<strong>{profile.wechat.label}</strong></span></figcaption>
+      </figure>
+    </div>
+  </div>;
+}
 export function App() {
   useScrollProgress();
   const [pathname, setPathname] = useState(() => window.location.pathname);
+  const [wechatOpen, setWechatOpen] = useState(false);
   const contentRoute = parseContentRoute(pathname);
   const activeArticle = contentRoute?.type === "article" ? articles.find((article) => article.id === contentRoute.id) || null : null;
   const activeProject = contentRoute?.type === "project" ? projects.find((project) => project.id === contentRoute.id) || null : null;
   const readerOpen = Boolean(activeArticle || activeProject);
   const isNotFound = pathname !== "/" && (!contentRoute || !readerOpen);
-  useFullPageSnap(!readerOpen && !isNotFound);
+  useFullPageSnap(!readerOpen && !isNotFound && !wechatOpen);
 
   const pendingReturnScrollYRef = useRef(null);
   const skipHashRestoreRef = useRef(false);
@@ -721,15 +749,12 @@ export function App() {
         <div className="contact__links">
           <a href={`mailto:${profile.email}`}><EnvelopeSimple size={22} aria-hidden="true" /><span><small>EMAIL</small>{profile.email}</span></a>
           <a href={profile.github.url} target="_blank" rel="noreferrer"><GithubLogo size={22} aria-hidden="true" /><span><small>GITHUB</small>{profile.github.label}</span></a>
-          <span className="contact__wechat-id"><WechatLogo size={22} aria-hidden="true" /><span><small>WECHAT</small>{profile.wechat.label}</span></span>
+          <button className="contact__wechat-id" type="button" aria-haspopup="dialog" onClick={() => setWechatOpen(true)}><WechatLogo size={22} aria-hidden="true" /><span><small>WECHAT</small>{profile.wechat.label}</span></button>
         </div>
       </div>
-      <figure className="contact__qr">
-        <div><img src={profile.wechat.qr} alt={`微信 ${profile.wechat.label} 的二维码`} loading="lazy" /></div>
-        <figcaption><WechatLogo size={18} aria-hidden="true" /><span>扫码添加微信<strong>{profile.wechat.label}</strong></span></figcaption>
-      </figure>
       <a className="contact__arrow" href="#top" aria-label="返回顶部"><ArrowUpRight size={32} aria-hidden="true" /></a>
     </section>
+    <WechatDialog open={wechatOpen} onClose={() => setWechatOpen(false)} />
     <ArticleReader article={activeArticle} onClose={closeContent} />
     <ProjectReader project={activeProject} onClose={closeContent} />
   </main>;
