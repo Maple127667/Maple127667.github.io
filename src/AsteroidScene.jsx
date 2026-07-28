@@ -1,11 +1,37 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
+import { createSeededRandom, normalizeSimulationSeed, seedToUint32 } from "./seededRandom.js";
 export default function AsteroidScene() {
   const canvasRef = useRef(null);
-  const statusRef = useRef(null);
+  const seedLabelRef = useRef(null);
+  const seedTriggerRef = useRef(null);
+  const seedInputRef = useRef(null);
   const cycleRef = useRef(null);
+  const applySeedRef = useRef(null);
+  const currentSeedRef = useRef("");
+  const [seedEditorOpen, setSeedEditorOpen] = useState(false);
+  const [seedInput, setSeedInput] = useState("");
+
+  const openSeedEditor = () => {
+    setSeedInput(currentSeedRef.current);
+    setSeedEditorOpen(true);
+  };
+
+  const closeSeedEditor = () => {
+    setSeedEditorOpen(false);
+    window.requestAnimationFrame(() => seedTriggerRef.current?.focus());
+  };
+
+  const submitSeed = (event) => {
+    event.preventDefault();
+    const normalizedSeed = normalizeSimulationSeed(seedInput);
+    if (!normalizedSeed) return;
+    applySeedRef.current?.(normalizedSeed);
+    setSeedInput(normalizedSeed);
+    setSeedEditorOpen(false);
+  };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -130,16 +156,27 @@ export default function AsteroidScene() {
       },
     ];
 
-    let cycleNumber = 0;
-    let cycleSeed = 0;
-    const randomValue = () => {
+    const createRandomSeedLabel = () => {
       if (window.crypto?.getRandomValues) {
         const value = new Uint32Array(1);
         window.crypto.getRandomValues(value);
-        return value[0] / 4294967296;
+        return value[0].toString(36).toUpperCase().padStart(7, "0").slice(-7);
       }
-      return Math.random();
+      return seedToUint32(`${Date.now()}:${window.performance.now()}`)
+        .toString(36)
+        .toUpperCase()
+        .padStart(7, "0")
+        .slice(-7);
     };
+
+    const requestedSeed = normalizeSimulationSeed(new URLSearchParams(window.location.search).get("seed"));
+    let activeSeed = requestedSeed || createRandomSeedLabel();
+    let cycleNumber = 0;
+    let cycleSeed = 0;
+    let cycleRandom = createSeededRandom(`${activeSeed}:0`);
+    currentSeedRef.current = activeSeed;
+
+    const randomValue = () => cycleRandom();
 
     const randomUnitVector = () => {
       const z = randomValue() * 2 - 1;
@@ -150,7 +187,9 @@ export default function AsteroidScene() {
 
     const randomizeMomentum = () => {
       cycleNumber += 1;
-      cycleSeed = randomValue() * 10000;
+      const cycleKey = `${activeSeed}:${cycleNumber}`;
+      cycleRandom = createSeededRandom(cycleKey);
+      cycleSeed = (seedToUint32(cycleKey) / 4294967296) * 10000;
       const centerVelocity = new THREE.Vector3();
       const totalMass = initialState.reduce((sum, body) => sum + body.mass, 0);
 
@@ -174,6 +213,8 @@ export default function AsteroidScene() {
       centerVelocity.multiplyScalar(1 / totalMass);
       initialState.forEach((body) => body.velocity.sub(centerVelocity));
       canvas.dataset.cycle = String(cycleNumber);
+      canvas.dataset.seed = activeSeed;
+      canvas.dataset.seedCycle = `${activeSeed}:${cycleNumber}`;
       canvas.dataset.collisionScale = "0.42";
       canvas.dataset.momentum = initialState
         .map((body) => body.velocity.toArray().map((value) => value.toFixed(5)).join(","))
@@ -471,12 +512,19 @@ export default function AsteroidScene() {
     let runningTime = 0;
     let frameCount = 0;
 
-    const setStatus = (primary, secondary, alert = false) => {
-      if (statusRef.current) {
-        statusRef.current.textContent = primary;
-        statusRef.current.style.color = alert ? "#c8ff23" : "";
+    const updateSeedLabel = () => {
+      const displaySeed = activeSeed.length > 18 ? `${activeSeed.slice(0, 17)}…` : activeSeed;
+      currentSeedRef.current = activeSeed;
+      if (seedLabelRef.current) seedLabelRef.current.textContent = `SEEDS / ${displaySeed}`;
+      if (seedTriggerRef.current) {
+        seedTriggerRef.current.setAttribute("aria-label", `当前三体初始方向 seed 为 ${activeSeed}，点击修改`);
       }
-      if (cycleRef.current) cycleRef.current.textContent = secondary;
+    };
+
+    const setSceneStatus = (label, alert = false) => {
+      if (!cycleRef.current) return;
+      cycleRef.current.textContent = label;
+      cycleRef.current.style.color = alert ? "#c8ff23" : "";
     };
 
     const resetTrails = () => {
@@ -513,10 +561,21 @@ export default function AsteroidScene() {
       ringMaterial.opacity = 0.16;
       bandMaterial.opacity = 0.08;
       resetTrails();
-      setStatus(
-        reduceMotion ? "THREE-BODY / REDUCED" : "THREE-BODY / CHAOTIC 3D",
-        `MOMENTUM / RANDOMIZED ${String(cycleNumber).padStart(2, "0")}`,
+      updateSeedLabel();
+      setSceneStatus(
+        reduceMotion
+          ? `REDUCED MOTION / CYCLE ${String(cycleNumber).padStart(2, "0")}`
+          : `CHAOTIC 3D / CYCLE ${String(cycleNumber).padStart(2, "0")}`,
       );
+    };
+
+    applySeedRef.current = (nextSeed) => {
+      activeSeed = normalizeSimulationSeed(nextSeed) || createRandomSeedLabel();
+      cycleNumber = 0;
+      const url = new URL(window.location.href);
+      url.searchParams.set("seed", activeSeed);
+      window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+      resetSimulation();
     };
 
     const triggerCollision = (firstIndex, secondIndex) => {
@@ -556,7 +615,7 @@ export default function AsteroidScene() {
           .addScaledVector(surfaceDirection, initialBody.radius * (0.32 + hash(shard.seed, 27) * 0.55));
       });
 
-      setStatus("COLLISION / FRACTURE", "SYSTEM INTEGRITY / 00%", true);
+      setSceneStatus("COLLISION / FRACTURE", true);
     };
 
     const stepGravity = (delta) => {
@@ -654,7 +713,7 @@ export default function AsteroidScene() {
           phase = "hold";
           phaseTime = 0;
           bodies.forEach((body) => { body.group.visible = false; });
-          setStatus("DEBRIS FIELD / UNSTABLE", "AUTO-REPAIR / STANDBY", true);
+          setSceneStatus("DEBRIS FIELD / UNSTABLE", true);
         }
         return;
       }
@@ -667,7 +726,7 @@ export default function AsteroidScene() {
         if (progress >= 1) {
           phase = "reassemble";
           phaseTime = 0;
-          setStatus("REASSEMBLING / MAGNETIC", "RECOVERY / 00%", true);
+          setSceneStatus("REASSEMBLING / MAGNETIC", true);
         }
         return;
       }
@@ -775,6 +834,7 @@ export default function AsteroidScene() {
 
     return () => {
       sceneDisposed = true;
+      applySeedRef.current = null;
       window.cancelAnimationFrame(frame);
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerleave", onPointerLeave);
@@ -803,11 +863,46 @@ export default function AsteroidScene() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!seedEditorOpen) return;
+    seedInputRef.current?.focus();
+    seedInputRef.current?.select();
+  }, [seedEditorOpen]);
+
   return (
-    <div className="asteroid-stage" aria-hidden="true">
-      <canvas ref={canvasRef} />
-      <span ref={statusRef} className="scene-label scene-label--top">THREE-BODY / CHAOTIC 3D</span>
-      <span ref={cycleRef} className="scene-label scene-label--bottom">COLLISION CYCLE / AUTO</span>
+    <div className="asteroid-stage">
+      <canvas ref={canvasRef} aria-hidden="true" />
+      <div className="seed-control scene-label scene-label--top">
+        <button
+          ref={seedTriggerRef}
+          className="seed-control__trigger"
+          type="button"
+          aria-expanded={seedEditorOpen}
+          aria-controls="three-body-seed-editor"
+          onClick={seedEditorOpen ? closeSeedEditor : openSeedEditor}
+        >
+          <span ref={seedLabelRef} aria-live="polite">SEEDS / INITIALIZING</span>
+        </button>
+        {seedEditorOpen && <form id="three-body-seed-editor" className="seed-control__editor" onSubmit={submitSeed}>
+          <input
+            ref={seedInputRef}
+            value={seedInput}
+            maxLength={32}
+            autoComplete="off"
+            spellCheck="false"
+            aria-label="输入用于定义三体初始方向的 seed"
+            placeholder="ENTER SEED"
+            onChange={(event) => setSeedInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== "Escape") return;
+              event.preventDefault();
+              closeSeedEditor();
+            }}
+          />
+          <button type="submit">SET</button>
+        </form>}
+      </div>
+      <span ref={cycleRef} className="scene-label scene-label--bottom" aria-hidden="true">CHAOTIC 3D / INITIALIZING</span>
     </div>
   );
 }
