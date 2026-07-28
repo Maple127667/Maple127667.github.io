@@ -72,3 +72,14 @@ test("only Search Agent is promoted as a full-screen project", async () => {
   assert.doesNotMatch(appSource, /<ProjectSection project=\{projects\[1\]\}/);
   assert.match(appSource, /<ProjectArchive items=\{projects\.slice\(2\)\}/);
 });
+test("returning from a reader cannot consume residual scrolling", async () => {
+  const appSource = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
+
+  assert.match(appSource, /const resumedFromReader = enabled && previousEnabledRef\.current === false/);
+  assert.match(appSource, /if \(suppressResumeWheel\)[\s\S]*resumeWheelTimer = window\.setTimeout/);
+  assert.match(appSource, /resumeWheelTimer = window\.setTimeout\(\(\) => \{ suppressResumeWheel = false; \}, 900\)/);
+  assert.match(appSource, /previousFocus\?\.focus\?\.\(\{ preventScroll: true \}\)/);
+  assert.match(appSource, /contentReturnY: returnScrollY/);
+  assert.match(appSource, /restoreReaderReturnPosition\(returnScrollY\)/);
+  assert.match(appSource, /skipHashRestoreRef\.current = true/);
+});

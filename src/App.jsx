@@ -68,8 +68,12 @@ function useScrollProgress() {
 }
 
 function useFullPageSnap(enabled) {
+  const previousEnabledRef = useRef(enabled);
+
   useEffect(() => {
     const root = document.documentElement;
+    const resumedFromReader = enabled && previousEnabledRef.current === false;
+    previousEnabledRef.current = enabled;
     if (!enabled) {
       root.dataset.snapPaused = "true";
       return () => { delete root.dataset.snapPaused; };
@@ -93,11 +97,13 @@ function useFullPageSnap(enabled) {
     };
     const clampIndex = (index) => Math.max(0, Math.min(getPanels().length - 1, index));
 
-    let lockedUntil = 0;
+    let lockedUntil = resumedFromReader ? window.performance.now() + 600 : 0;
     let unlockTimer;
     let settleTimer;
     let resizeTimer;
     let wheelReleaseTimer;
+    let resumeWheelTimer;
+    let suppressResumeWheel = resumedFromReader;
     let wheelDistance = 0;
     let gestureIndex = null;
     let wheelGestureConsumed = false;
@@ -150,7 +156,24 @@ function useFullPageSnap(enabled) {
         wheelDistance = 0;
         gestureIndex = null;
       }, 180);
-      if (wheelGestureConsumed || window.performance.now() < lockedUntil) return;
+      if (suppressResumeWheel) {
+        wheelGestureConsumed = true;
+        wheelDistance = 0;
+        gestureIndex = null;
+        window.clearTimeout(resumeWheelTimer);
+        resumeWheelTimer = window.setTimeout(() => {
+          suppressResumeWheel = false;
+          wheelGestureConsumed = false;
+        }, 240);
+        return;
+      }
+      if (window.performance.now() < lockedUntil) {
+        wheelGestureConsumed = true;
+        wheelDistance = 0;
+        gestureIndex = null;
+        return;
+      }
+      if (wheelGestureConsumed) return;
       if (gestureIndex === null) gestureIndex = nearestIndex();
       const multiplier = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
       wheelDistance += event.deltaY * multiplier;
@@ -209,6 +232,9 @@ function useFullPageSnap(enabled) {
       resizeTimer = window.setTimeout(() => setSnapMetadata(nearestIndex()), 120);
     };
 
+    if (suppressResumeWheel) {
+      resumeWheelTimer = window.setTimeout(() => { suppressResumeWheel = false; }, 900);
+    }
     setSnapMetadata(nearestIndex());
     window.addEventListener("wheel", onWheel, { passive: false });
     window.addEventListener("touchstart", onTouchStart, { passive: true });
@@ -221,6 +247,7 @@ function useFullPageSnap(enabled) {
       window.clearTimeout(settleTimer);
       window.clearTimeout(resizeTimer);
       window.clearTimeout(wheelReleaseTimer);
+      window.clearTimeout(resumeWheelTimer);
       root.classList.remove("is-snap-gesturing");
       window.removeEventListener("wheel", onWheel);
       window.removeEventListener("touchstart", onTouchStart);
@@ -429,7 +456,7 @@ function useReaderDialog(isOpen, onClose, closeRef) {
       window.cancelAnimationFrame(focusFrame);
       window.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = previousOverflow;
-      previousFocus?.focus?.();
+      previousFocus?.focus?.({ preventScroll: true });
     };
   }, [isOpen, onClose, closeRef]);
 }
@@ -560,6 +587,9 @@ export function App() {
   const isNotFound = pathname !== "/" && (!contentRoute || !readerOpen);
   useFullPageSnap(!readerOpen && !isNotFound);
 
+  const pendingReturnScrollYRef = useRef(null);
+  const skipHashRestoreRef = useRef(false);
+
   const scrollToCurrentHash = useCallback(() => {
     if (!window.location.hash) return;
     window.requestAnimationFrame(() => {
@@ -567,21 +597,52 @@ export function App() {
     });
   }, []);
 
+  const restoreReaderReturnPosition = useCallback((returnScrollY) => {
+    skipHashRestoreRef.current = true;
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        window.scrollTo({ top: returnScrollY, behavior: "auto" });
+      });
+    });
+  }, []);
+
   useEffect(() => {
-    const onPopState = () => {
-      setPathname(window.location.pathname);
-      if (window.location.pathname === "/") scrollToCurrentHash();
+    const onPopState = (event) => {
+      const nextPathname = window.location.pathname;
+      const returningFromReader = Boolean(parseContentRoute(pathname)) && nextPathname === "/";
+      setPathname(nextPathname);
+      if (returningFromReader) {
+        const storedReturnScrollY = Number(event.state?.contentReturnY);
+        const returnScrollY = Number.isFinite(pendingReturnScrollYRef.current)
+          ? pendingReturnScrollYRef.current
+          : storedReturnScrollY;
+        pendingReturnScrollYRef.current = null;
+        if (Number.isFinite(returnScrollY)) {
+          restoreReaderReturnPosition(returnScrollY);
+          return;
+        }
+      }
+      if (nextPathname === "/") scrollToCurrentHash();
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
-  }, [scrollToCurrentHash]);
+  }, [pathname, restoreReaderReturnPosition, scrollToCurrentHash]);
 
   useEffect(() => {
-    if (pathname === "/") scrollToCurrentHash();
+    if (pathname !== "/") return;
+    if (skipHashRestoreRef.current) {
+      skipHashRestoreRef.current = false;
+      return;
+    }
+    scrollToCurrentHash();
   }, [pathname, scrollToCurrentHash]);
 
   const openContent = useCallback((type, id) => {
     const nextPath = contentRoutePath(type, id);
+    const returnScrollY = window.scrollY;
+    const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    pendingReturnScrollYRef.current = returnScrollY;
+    window.history.replaceState({ ...(window.history.state || {}), contentReturnY: returnScrollY }, "", currentUrl);
     window.history.pushState({ contentOverlay: true }, "", nextPath);
     setPathname(nextPath);
   }, []);
