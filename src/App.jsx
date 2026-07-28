@@ -24,10 +24,12 @@ const LazyAsteroidScene = lazy(() => import("./AsteroidScene.jsx"));
 const sectionRailItems = [
   { id: "top", number: "01", label: "首页" },
   { id: "projects", number: "02", label: "作品" },
-  { id: "about", number: "03", label: "关于" },
+  { id: "about", number: "03", label: "关于我" },
   { id: "notes", number: "04", label: "文章" },
   { id: "contact", number: "05", label: "联系" },
 ];
+
+const pendingArticleSlots = ["03", "04"];
 
 function parseContentRoute(pathname = window.location.pathname) {
   const match = pathname.match(/^\/(articles|projects)\/([^/]+)\/?$/);
@@ -321,7 +323,7 @@ function Header() {
   return <header className="site-header">
     <a className="wordmark" href="#top" aria-label="Maple 首页">MAPLE <span aria-hidden="true" /></a>
     <button className="menu-toggle" type="button" onClick={() => setMenuOpen((value) => !value)} aria-expanded={menuOpen} aria-controls="site-navigation" aria-label={menuOpen ? "关闭菜单" : "打开菜单"}>{menuOpen ? <X size={22} /> : <List size={22} />}</button>
-    <nav id="site-navigation" className={`site-nav${menuOpen ? " is-open" : ""}`} aria-label="主导航"><a href="#projects" onClick={close}>作品</a><a href="#about" onClick={close}>关于</a><a href="#notes" onClick={close}>文章</a><a href="#contact" onClick={close}>联系</a></nav>
+    <nav id="site-navigation" className={`site-nav${menuOpen ? " is-open" : ""}`} aria-label="主导航"><a href="#projects" onClick={close}>作品</a><a href="#about" onClick={close}>关于我</a><a href="#notes" onClick={close}>文章</a><a href="#contact" onClick={close}>联系</a></nav>
     <span className="scroll-meter" aria-hidden="true" />
   </header>;
 }
@@ -370,8 +372,8 @@ function FeaturedEssayInterlude({ article, onOpenArticle }) {
 function ProjectArchive({ items, onOpenProject }) {
   return <div className="project-archive snap-panel" aria-label="更多项目">
     <div className="project-archive__heading"><p>更多项目 / MORE WORK</p><span>能力的宽度，不需要重复同一种音量。</span></div>
-    <div className="project-archive__grid">
-      {items.map((project) => <article className="project-card" key={project.id} aria-labelledby={`project-${project.id}`}>
+    <div className={`project-archive__grid${items.length === 1 ? " project-archive__grid--single" : ""}`}>
+      {items.map((project) => <article className={`project-card project-card--${project.id}`} key={project.id} aria-labelledby={`project-${project.id}`}>
         <div className="project-card__image"><img src={project.cover} alt={`${project.title}项目视觉`} loading="lazy" /></div>
         <div className="project-card__copy"><span>{project.index} / {project.year}</span><p>{project.category}</p><h3 id={`project-${project.id}`}>{project.title}</h3><p>{project.excerpt}</p><button type="button" className="text-link" aria-haspopup="dialog" onClick={() => onOpenProject(project.id)}>查看项目 <ArrowRight size={16} aria-hidden="true" /></button></div>
       </article>)}
@@ -421,6 +423,11 @@ function NotesSection({ onOpenArticle }) {
           <span className="article-index__copy"><span>{article.category} · {article.readTime}</span><strong>{article.title}</strong><small>{article.excerpt}</small></span>
           <ArrowUpRight size={18} aria-hidden="true" />
         </button>)}
+        {pendingArticleSlots.map((index) => <div className="article-index article-index--pending" aria-label={`文章 ${index} 待添加`} key={index}>
+          <span className="article-index__number">{index}</span>
+          <span className="article-index__copy"><span>ARTICLE / UPCOMING</span><strong>待添加</strong><small>新的文章正在整理中。</small></span>
+          <span className="article-index__pending-mark" aria-hidden="true">—</span>
+        </div>)}
       </div>
     </div>
   </section>;
@@ -549,11 +556,11 @@ function ProjectReader({ project, onClose }) {
         <div>
           <span>SELECTED WORK / {project.index}</span>
           {project.status && <p className="project-reader__status"><i aria-hidden="true" />{project.status}</p>}
-          <h2 id="project-reader-title">{project.title}</h2>
+          <h2 id="project-reader-title">{project.headline}</h2>
           <p>{project.excerpt}</p>
         </div>
       </header>
-      <figure className="project-reader__cover"><img src={project.cover} alt={`${project.title}项目视觉`} /></figure>
+      <figure className={`project-reader__cover project-reader__cover--${project.id}`}><img src={project.cover} alt={`${project.title}项目视觉`} /></figure>
       <div className="article-reader__body">
         <ContentsIndex headings={project.headings} />
         <MarkdownContent content={project.body} headings={project.headings} endLabel={`END OF PROJECT / ${project.index}`} />
@@ -675,7 +682,7 @@ export function App() {
     <Header />
     <SectionRail />
     <section className="hero snap-panel" aria-labelledby="hero-title">
-      <div className="hero__copy"><p className="eyebrow">{profile.name.toUpperCase()} / PORTFOLIO + NOTES 2026</p><h1 id="hero-title">{profile.name.toUpperCase()} <em>/</em><br />CREATIVE<br />DEVELOPER</h1><p className="hero__statement">{profile.heroStatement[0]}<br />{profile.heroStatement[1]}</p><p className="availability"><span aria-hidden="true" />{profile.availability}</p><a className="primary-button" href="#projects">查看作品 <ArrowUpRight size={18} weight="bold" aria-hidden="true" /></a><p className="location">{profile.location}<br />© {profile.name.toUpperCase()} 2026</p></div>
+      <div className="hero__copy"><p className="eyebrow">{profile.name.toUpperCase()} / PORTFOLIO + NOTES 2026</p><h1 id="hero-title"><span className="hero__name">{profile.name.toUpperCase()} <em>/</em></span><span className="hero__role-lockup"><span className="hero__role-en">CREATIVE DEVELOPER</span><span className="hero__role-cn">创意开发者<br />AI 应用与 Agent 系统</span></span></h1><p className="hero__statement">{profile.heroStatement[0]}<br />{profile.heroStatement[1]}</p><p className="availability"><span aria-hidden="true" />{profile.availability}</p><a className="primary-button" href="#projects">查看作品 <ArrowUpRight size={18} weight="bold" aria-hidden="true" /></a><p className="location">{profile.location}<br />© {profile.name.toUpperCase()} 2026</p></div>
       <div className="hero__visual"><DeferredAsteroidScene /></div>
     </section>
     <section className="projects" id="projects" aria-labelledby="works-title">
@@ -684,7 +691,7 @@ export function App() {
         <ProjectSection project={projects[0]} onOpenProject={openProject} />
       </div>
       <FeaturedEssayInterlude article={featuredArticle} onOpenArticle={openArticle} />
-      <ProjectArchive items={projects.slice(2)} onOpenProject={openProject} />
+      <ProjectArchive items={projects.slice(1)} onOpenProject={openProject} />
     </section>
     <ProfileSection />
     <NotesSection onOpenArticle={openArticle} />

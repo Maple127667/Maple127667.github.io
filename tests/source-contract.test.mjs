@@ -8,6 +8,7 @@ test("page progress rail and profile flow stay complete", async () => {
   const ids = [...rail.matchAll(/id:\s*["']([^"']+)["']/g)].map((match) => match[1]);
 
   assert.deepEqual(ids, ["top", "projects", "about", "notes", "contact"]);
+  assert.match(source, /href="#about"[^>]*>关于我<\/a>/);
   assert.match(source, /function ProfileSection\(\)/);
   assert.match(source, /from "\.\/content\/profile\.js"/);
   assert.match(source, /from "\.\/content\/projects\/index\.js"/);
@@ -18,6 +19,15 @@ test("page progress rail and profile flow stay complete", async () => {
   assert.doesNotMatch(source, /className="about snap-panel/);
 });
 
+test("hero identity hierarchy keeps Maple primary and annotates the role in Chinese", async () => {
+  const source = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
+
+  assert.match(source, /className="hero__name"/);
+  assert.match(source, /className="hero__role-lockup"/);
+  assert.match(source, /className="hero__role-en">CREATIVE DEVELOPER/);
+  assert.match(source, /className="hero__role-cn">创意开发者/);
+  assert.match(source, /AI 应用与 Agent 系统/);
+});
 test("markdown section numbers stay stable across repeated renders", async () => {
   const appSource = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
 
@@ -30,9 +40,20 @@ test("markdown section numbers stay stable across repeated renders", async () =>
 test("small interface type stays above the legibility floor", async () => {
   const cssSource = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
 
-  assert.match(cssSource, /ibm-plex-mono\/500\.css/);
+  assert.match(cssSource, /@fontsource-variable\/inter/);
+  assert.doesNotMatch(cssSource, /IBM Plex|ibm-plex|var\(--mono\)/i);
   assert.doesNotMatch(cssSource, /font:\s*(?:10|11|12)px\//);
   assert.doesNotMatch(cssSource, /font-size:\s*(?:10|11|12)px/);
+});
+test("Chinese flagship project labels use the UI sans stack", async () => {
+  const cssSource = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+
+  assert.match(cssSource, /--ui:\s*"Inter Variable",\s*Inter,\s*system-ui/);
+  assert.match(cssSource, /--code:\s*"Cascadia Code"/);
+  assert.match(cssSource, /\.project__kicker\s*\{[^}]*font:\s*500 15px\/1\.5 var\(--ui\)[^}]*letter-spacing:\s*0/);
+  assert.match(cssSource, /\.project__status\s*\{[^}]*font:\s*500 14px\/1\.5 var\(--ui\)[^}]*letter-spacing:\s*0/);
+  assert.match(cssSource, /\.project__copy \.text-link\s*\{[^}]*font:\s*500 15px\/1\.3 var\(--ui\)[^}]*letter-spacing:\s*0/);
+  assert.match(cssSource, /\.site-nav a\s*\{[^}]*font:\s*500 14px\/1\.35 var\(--ui\)[^}]*letter-spacing:\s*0/);
 });
 test("unknown routes render a real 404 state", async () => {
   const source = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
@@ -70,7 +91,7 @@ test("only Search Agent is promoted as a full-screen project", async () => {
 
   assert.match(appSource, /<ProjectSection project=\{projects\[0\]\}/);
   assert.doesNotMatch(appSource, /<ProjectSection project=\{projects\[1\]\}/);
-  assert.match(appSource, /<ProjectArchive items=\{projects\.slice\(2\)\}/);
+  assert.match(appSource, /<ProjectArchive items=\{projects\.slice\(1\)\}/);
 });
 test("returning from a reader cannot consume residual scrolling", async () => {
   const appSource = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");

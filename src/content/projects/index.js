@@ -26,6 +26,7 @@ function createProject(path, source) {
     id: String(data.id || filename),
     order: Number(data.order ?? Number.MAX_SAFE_INTEGER),
     title: String(data.title),
+    headline: data.headline ? String(data.headline) : String(data.title),
     year: String(data.year),
     category: String(data.category),
     excerpt: String(data.excerpt),
