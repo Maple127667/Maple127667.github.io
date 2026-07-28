@@ -65,3 +65,10 @@ test("featured essay title keeps its semantic two-line break", async () => {
   assert.match(cssSource, /\.featured-note__title-line \{ display: block; \}/);
   assert.match(cssSource, /@media \(min-width: 761px\)[\s\S]*?\.featured-note__title-line \{ white-space: nowrap; \}/);
 });
+test("only Search Agent is promoted as a full-screen project", async () => {
+  const appSource = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
+
+  assert.match(appSource, /<ProjectSection project=\{projects\[0\]\}/);
+  assert.doesNotMatch(appSource, /<ProjectSection project=\{projects\[1\]\}/);
+  assert.match(appSource, /<ProjectArchive items=\{projects\.slice\(2\)\}/);
+});

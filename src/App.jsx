@@ -623,7 +623,6 @@ export function App() {
         <ProjectSection project={projects[0]} onOpenProject={openProject} />
       </div>
       <FeaturedEssayInterlude article={featuredArticle} onOpenArticle={openArticle} />
-      <div className="project-panel snap-panel"><ProjectSection project={projects[1]} onOpenProject={openProject} /></div>
       <ProjectArchive items={projects.slice(2)} onOpenProject={openProject} />
     </section>
     <ProfileSection />
