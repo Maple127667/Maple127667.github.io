@@ -578,7 +578,7 @@ function ProjectReader({ project, onClose }) {
         </div>
       </header>
       <figure className={`project-reader__cover project-reader__cover--${project.id}`}><img src={project.cover} alt={`${project.title}项目视觉`} /></figure>
-          <ProjectExternalLink project={project} />
+      <div className="project-reader__external"><ProjectExternalLink project={project} /></div>
       <div className="article-reader__body">
         <ContentsIndex headings={project.headings} />
         <MarkdownContent content={project.body} headings={project.headings} endLabel={`END OF PROJECT / ${project.index}`} />

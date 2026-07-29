@@ -118,6 +118,7 @@ test("published projects expose their primary external destinations", async () =
 
   assert.match(indexSource, /linkUrl/);
   assert.match(appSource, /function ProjectExternalLink\(/);
+  assert.match(appSource, /project-reader__external/);
   assert.match(searchSource, /github\.com\/Maple127667\/search_agent/);
   assert.match(shianSource, /https:\/\/shian-manual\.top\//);
   assert.match(maibotSource, /github\.com\/Maple127667\/MaiBot/);
