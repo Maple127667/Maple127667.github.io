@@ -139,3 +139,18 @@ test("contact details use the published email and WeChat QR identity", async () 
   assert.doesNotMatch(appSource, /扫码添加微信/);
   assert.match(appSource, /WechatLogo/);
 });
+
+test("markdown images open in an accessible lightbox", async () => {
+  const [appSource, cssSource] = await Promise.all([
+    readFile(new URL("../src/App.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/styles.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(appSource, /function MarkdownContent[\s\S]*article-image-button/);
+  assert.match(appSource, /className="image-lightbox"/);
+  assert.match(appSource, /aria-label="关闭图片预览"/);
+  assert.match(appSource, /window\.addEventListener\("keydown", onKeyDown, true\)/);
+  assert.match(appSource, /previousReaderScrollTop[\s\S]*reader\.scrollTo\(\{ top: previousReaderScrollTop, behavior: "auto" \}\)/);
+  assert.match(cssSource, /\.image-lightbox\s*\{/);
+  assert.match(cssSource, /cursor:\s*zoom-in/);
+});

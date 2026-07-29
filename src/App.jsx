@@ -511,6 +511,40 @@ function remarkHeadingIndexes() {
 }
 
 function MarkdownContent({ content, headings, endLabel }) {
+  const [lightboxImage, setLightboxImage] = useState(null);
+  const lightboxCloseRef = useRef(null);
+
+  useEffect(() => {
+    if (!lightboxImage) return undefined;
+    const reader = document.querySelector(".article-reader");
+    const previousReaderOverflow = reader?.style.overflow;
+    const previousReaderScrollTop = reader?.scrollTop ?? 0;
+    const previousFocus = document.activeElement;
+    if (reader) reader.style.overflow = "hidden";
+    const focusFrame = window.requestAnimationFrame(() => lightboxCloseRef.current?.focus());
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        setLightboxImage(null);
+      } else if (event.key === "Tab") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        lightboxCloseRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      window.removeEventListener("keydown", onKeyDown, true);
+      if (reader) reader.style.overflow = previousReaderOverflow ?? "";
+      window.requestAnimationFrame(() => {
+        if (reader) reader.scrollTo({ top: previousReaderScrollTop, behavior: "auto" });
+        previousFocus?.focus?.({ preventScroll: true });
+      });
+    };
+  }, [lightboxImage]);
+
   const markdownComponents = {
     h2({ children, node }) {
       const rawIndex = node?.properties?.dataHeadingIndex ?? node?.properties?.["data-heading-index"];
@@ -524,11 +558,25 @@ function MarkdownContent({ content, headings, endLabel }) {
       const isExternal = /^https?:\/\//.test(href);
       return <a href={href} target={isExternal ? "_blank" : undefined} rel={isExternal ? "noreferrer" : undefined} {...props}>{children}</a>;
     },
+    img({ src = "", alt = "" }) {
+      return <button className="article-image-button" type="button" onClick={() => setLightboxImage({ src, alt })} aria-label={`放大图片：${alt || "文章插图"}`}>
+        <img src={src} alt={alt} loading="lazy" />
+      </button>;
+    },
   };
 
   return <div className="article-reader__prose">
     <ReactMarkdown remarkPlugins={[remarkGfm, remarkHeadingIndexes]} components={markdownComponents}>{content}</ReactMarkdown>
     <footer>{endLabel}</footer>
+    {lightboxImage && <div className="image-lightbox" role="dialog" aria-modal="true" aria-label={lightboxImage.alt ? `图片预览：${lightboxImage.alt}` : "图片预览"} onMouseDown={(event) => {
+      if (event.target === event.currentTarget) setLightboxImage(null);
+    }}>
+      <div className="image-lightbox__panel">
+        <button ref={lightboxCloseRef} className="image-lightbox__close" type="button" onClick={() => setLightboxImage(null)} aria-label="关闭图片预览"><X size={23} aria-hidden="true" /></button>
+        <img src={lightboxImage.src} alt={lightboxImage.alt} />
+        {lightboxImage.alt && <p>{lightboxImage.alt}</p>}
+      </div>
+    </div>}
   </div>;
 }
 
