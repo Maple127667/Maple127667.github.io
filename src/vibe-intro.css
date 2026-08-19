@@ -2044,6 +2044,17 @@
   }
 }
 
+/* Keep the escape action anchored to the viewport across every workbench layout. */
+.opening-stage[data-intro-active="true"] .vibe-intro__skip {
+  position: fixed;
+  z-index: 50;
+  top: max(12px, env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right));
+  min-inline-size: 0;
+  min-block-size: 44px;
+  padding-inline: 16px;
+}
+
 /*
  * Good-chain preview contract.
  *
@@ -2108,6 +2119,8 @@
 
 .opening-stage[data-intro-active="true"] .hero__copy {
   z-index: 3;
+  opacity: 0;
+  visibility: hidden;
 }
 
 .opening-stage[data-intro-active="true"]:is(
@@ -2132,6 +2145,7 @@
   [data-preview="good-copy-muted"]
 ) .hero__copy {
   opacity: 1;
+  visibility: visible;
 }
 
 .opening-stage[data-intro-active="true"]:is(
@@ -2283,6 +2297,7 @@
   [data-preview="ready"]
 ) .hero__copy {
   opacity: 1;
+  visibility: visible;
 }
 
 .opening-stage[data-intro-active="true"]:is(
@@ -2377,12 +2392,23 @@
   [data-preview="good-three"],
   [data-preview="ready"]
 ) .hero__starfield {
-  opacity: 0.7;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 260ms ease,
+    visibility 0s linear 260ms,
+    transform 140ms cubic-bezier(0.2, 0.72, 0.2, 1);
 }
 
 .opening-stage[data-intro-active="true"][data-phase="publishing"] .hero__starfield,
+.opening-stage[data-intro-active="true"][data-phase="complete"] .hero__starfield,
 .opening-stage[data-intro-active="false"] .hero__starfield {
-  opacity: 0.74;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 260ms ease,
+    visibility 0s linear 260ms,
+    transform 140ms cubic-bezier(0.2, 0.72, 0.2, 1);
 }
 
 @media (max-width: 760px) {

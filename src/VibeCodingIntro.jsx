@@ -889,7 +889,7 @@ export function VibeCodingOpening({
       <header className="vibe-intro__topbar">
         <p className="vibe-intro__brand">MAPLE <i aria-hidden="true">/</i> VIBE WORKBENCH</p>
       </header>
-      <button className="vibe-intro__skip" type="button" onClick={finish}>跳过演示 <span aria-hidden="true">↗</span></button>
+      <button className="vibe-intro__skip" type="button" onClick={finish}>Skip</button>
 
       <aside
         className="vibe-intro__conversation"

@@ -39,6 +39,7 @@ export default function AsteroidScene() {
 
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const isCompact = window.innerWidth < 720;
+    const BACKGROUND_LAYER = 1;
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
     camera.position.set(0.15, 0.04, 7.9);
@@ -55,6 +56,7 @@ export default function AsteroidScene() {
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.2;
+    renderer.autoClear = false;
 
     const systemGroup = new THREE.Group();
     systemGroup.rotation.set(-0.12, -0.28, 0.05);
@@ -370,6 +372,56 @@ export default function AsteroidScene() {
         canvas.dataset.asteroidModel = "procedural-fallback";
       },
     );
+    const createFieldGeometry = (count, baseRadius, seed) => {
+      const positions = [];
+      for (let index = 0; index < count; index += 1) {
+        const y = 1 - (index / Math.max(1, count - 1)) * 2;
+        const radial = Math.sqrt(Math.max(0, 1 - y * y));
+        const angle = index * 2.399963 + seed;
+        const distance = baseRadius + (hash(index, seed) - 0.5) * 0.72;
+        positions.push(
+          Math.cos(angle) * radial * distance,
+          y * distance,
+          Math.sin(angle) * radial * distance,
+        );
+      }
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+      return geometry;
+    };
+
+    const ringMaterial = new THREE.PointsMaterial({
+      color: 0x7894aa,
+      size: 0.018,
+      transparent: true,
+      opacity: 0.16,
+      blending: THREE.AdditiveBlending,
+      depthTest: false,
+      depthWrite: false,
+      sizeAttenuation: true,
+    });
+    const energyRing = new THREE.Points(createFieldGeometry(isCompact ? 54 : 92, 2.74, 0.8), ringMaterial);
+    energyRing.rotation.set(0.28, 0.35, -0.18);
+    energyRing.renderOrder = -10;
+    energyRing.layers.set(BACKGROUND_LAYER);
+    systemGroup.add(energyRing);
+
+    const bandMaterial = new THREE.PointsMaterial({
+      color: 0x405d78,
+      size: 0.012,
+      transparent: true,
+      opacity: 0.08,
+      blending: THREE.AdditiveBlending,
+      depthTest: false,
+      depthWrite: false,
+      sizeAttenuation: true,
+    });
+    const energyBand = new THREE.Points(createFieldGeometry(isCompact ? 28 : 46, 3.3, 2.4), bandMaterial);
+    energyBand.rotation.set(-0.35, 0.2, 0.44);
+    energyBand.renderOrder = -20;
+    energyBand.layers.set(BACKGROUND_LAYER);
+    systemGroup.add(energyBand);
+
     const shockwaveMaterial = new THREE.MeshBasicMaterial({
       color: 0xd7ff55,
       transparent: true,
@@ -418,6 +470,32 @@ export default function AsteroidScene() {
       };
     });
     if (shardMesh.instanceColor) shardMesh.instanceColor.needsUpdate = true;
+
+    const starPositions = [];
+    const starCount = isCompact ? 150 : 280;
+    for (let index = 0; index < starCount; index += 1) {
+      const angle = index * 2.39996;
+      const radius = 3.1 + hash(index, 2) * 3.5;
+      starPositions.push(
+        Math.cos(angle) * radius,
+        (hash(index, 6) - 0.5) * 6.2,
+        Math.sin(angle) * radius - 1.8,
+      );
+    }
+    const starsGeometry = new THREE.BufferGeometry();
+    starsGeometry.setAttribute("position", new THREE.Float32BufferAttribute(starPositions, 3));
+    const starsMaterial = new THREE.PointsMaterial({
+      color: 0x8297aa,
+      size: 0.018,
+      transparent: true,
+      opacity: 0.5,
+      depthTest: false,
+      depthWrite: false,
+    });
+    const stars = new THREE.Points(starsGeometry, starsMaterial);
+    stars.renderOrder = -30;
+    stars.layers.set(BACKGROUND_LAYER);
+    scene.add(stars);
 
     scene.add(new THREE.HemisphereLight(0xc4d5e2, 0x02050b, 0.84));
     const keyLight = new THREE.DirectionalLight(0xf0f4f7, 4.8);
@@ -771,6 +849,12 @@ export default function AsteroidScene() {
         updateCollisionCycle(delta);
       }
 
+      energyRing.rotation.x = 0.28 + Math.sin(runningTime * 0.11) * 0.08;
+      energyRing.rotation.y = 0.35 + runningTime * 0.018;
+      energyRing.rotation.z = -0.18 + runningTime * 0.012;
+      energyBand.rotation.x = -0.35 + Math.cos(runningTime * 0.09) * 0.1;
+      energyBand.rotation.y = 0.2 - runningTime * 0.016;
+      energyBand.rotation.z = 0.44 + runningTime * 0.01;
       systemGroup.rotation.y = -0.28 + Math.sin(runningTime * 0.09) * 0.18 + pointer.x * 0.24;
       systemGroup.rotation.x = -0.12 + Math.cos(runningTime * 0.075) * 0.1 - pointer.y * 0.16;
       systemGroup.rotation.z = Math.sin(runningTime * 0.06) * 0.07;
@@ -778,6 +862,11 @@ export default function AsteroidScene() {
       camera.position.y = Math.cos(runningTime * 0.085) * 0.18 + pointer.y * -0.3;
       camera.position.z = cameraDistance + Math.sin(runningTime * 0.07) * 0.12;
       camera.lookAt(0, 0, 0);
+      renderer.clear(true, true, true);
+      camera.layers.set(BACKGROUND_LAYER);
+      renderer.render(scene, camera);
+      renderer.clearDepth();
+      camera.layers.set(0);
       renderer.render(scene, camera);
     };
     frame = window.requestAnimationFrame(animate);
@@ -798,10 +887,16 @@ export default function AsteroidScene() {
         body.trailMaterial.dispose();
         body.trailPointsMaterial.dispose();
       });
+      energyRing.geometry.dispose();
+      energyBand.geometry.dispose();
+      ringMaterial.dispose();
+      bandMaterial.dispose();
       shockwave.geometry.dispose();
       shockwaveMaterial.dispose();
       shardGeometry.dispose();
       shardMaterial.dispose();
+      starsGeometry.dispose();
+      starsMaterial.dispose();
       bennuTexture?.dispose();
       rockTexture.dispose();
       renderer.dispose();
