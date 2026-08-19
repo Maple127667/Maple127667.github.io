@@ -2,16 +2,17 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("page progress rail and profile flow stay complete", async () => {
+test("page progress rail follows the project-ring journey", async () => {
   const source = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
   const rail = source.match(/const sectionRailItems\s*=\s*\[([\s\S]*?)\];/)?.[1] ?? "";
   const ids = [...rail.matchAll(/id:\s*["']([^"']+)["']/g)].map((match) => match[1]);
 
-  assert.deepEqual(ids, ["top", "projects", "about", "notes", "contact"]);
-  assert.match(source, /href="#about"[^>]*>关于我<\/a>/);
-  assert.match(source, /function ProfileSection\(\)/);
-  assert.match(source, /from "\.\/content\/profile\.js"/);
+  assert.deepEqual(ids, ["top", "projects", "stack", "contact"]);
+  assert.match(source, /href="#top"[^>]*>关于我<\/a>/);
+  assert.match(source, /href="#stack"[^>]*>技术栈<\/a>/);
   assert.match(source, /from "\.\/content\/projects\/index\.js"/);
+  assert.match(source, /from "\.\/PortfolioJourney\.jsx"/);
+  assert.match(source, /<PortfolioJourney[^>]*projects=\{projects\}[^>]*onOpenProject=\{openProject\}/);
   assert.match(source, /collection = type === "article" \? "articles" : "projects"/);
   assert.match(source, /function ProjectReader\(/);
   assert.doesNotMatch(source, /const projects\s*=/);
@@ -59,21 +60,24 @@ test("unknown routes render a real 404 state", async () => {
   const source = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
 
   assert.match(source, /function NotFoundPage\(/);
-  assert.match(source, /const isNotFound = pathname !== "\/"/);
-  assert.match(source, /if \(isNotFound\) return <NotFoundPage/);
+  assert.match(source, /const isNotFound = pathname !== "\/" && \(!contentRoute \|\| !readerOpen\)/);
+  assert.match(source, /\{isNotFound \? <div[\s\S]*?<NotFoundPage path=\{pathname\}/);
   assert.doesNotMatch(source, /if \(!contentRoute \|\| readerOpen\) return/);
 });
 
-test("Three.js lives behind a deferred dynamic import", async () => {
+test("Three.js uses one cached lazy module behind the readiness gate", async () => {
   const [appSource, sceneSource] = await Promise.all([
     readFile(new URL("../src/App.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/AsteroidScene.jsx", import.meta.url), "utf8"),
   ]);
 
-  assert.match(appSource, /lazy\(\(\) => import\("\.\/AsteroidScene\.jsx"\)\)/);
+  assert.match(appSource, /let asteroidSceneModulePromise/);
+  assert.match(appSource, /asteroidSceneModulePromise \?\?= import\("\.\/AsteroidScene\.jsx"\)/);
+  assert.match(appSource, /const LazyAsteroidScene = lazy\(loadAsteroidSceneModule\)/);
+  assert.match(appSource, /<LazyAsteroidScene onProgress=\{onProgress\} onReady=\{onReady\}/);
+  assert.match(appSource, /const bootReady = pathname !== "\/" \|\| sceneLoad\.ready/);
   assert.match(sceneSource, /renderer\.setClearColor\(0x000000, 0\)/);
   assert.match(sceneSource, /renderer\.setClearAlpha\(0\)/);
-  assert.match(appSource, /requestIdleCallback/);
   assert.doesNotMatch(appSource, /from "three"/);
   assert.match(sceneSource, /from "three"/);
 });
@@ -88,23 +92,28 @@ test("featured essay title keeps its semantic two-line break", async () => {
   assert.match(cssSource, /\.featured-note__title-line \{ display: block; \}/);
   assert.match(cssSource, /@media \(min-width: 761px\)[\s\S]*?\.featured-note__title-line \{ white-space: nowrap; \}/);
 });
-test("only Search Agent is promoted as a full-screen project", async () => {
-  const appSource = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
+test("all published projects feed the equal-weight interactive ring", async () => {
+  const [appSource, journeySource] = await Promise.all([
+    readFile(new URL("../src/App.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/PortfolioJourney.jsx", import.meta.url), "utf8"),
+  ]);
 
-  assert.match(appSource, /<ProjectSection project=\{projects\[0\]\}/);
-  assert.doesNotMatch(appSource, /<ProjectSection project=\{projects\[1\]\}/);
-  assert.match(appSource, /<ProjectArchive items=\{projects\.slice\(1\)\}/);
+  assert.match(appSource, /<PortfolioJourney[^>]*projects=\{projects\}[^>]*onOpenProject=\{openProject\}/);
+  assert.match(journeySource, /projects\.map\(\(project, projectIndex\) =>/);
+  assert.match(journeySource, /className="portfolio-project__open-hit"/);
+  assert.match(journeySource, /onOpenProject\(project\.id\)/);
+  assert.match(journeySource, /project\.technologies\.map/);
+  assert.match(journeySource, /AUTO \/ \{rotationPaused \? "OFF" : "ON"\}/);
 });
-test("returning from a reader cannot consume residual scrolling", async () => {
+test("returning from a reader restores the captured native scroll position", async () => {
   const appSource = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
 
-  assert.match(appSource, /const resumedFromReader = enabled && previousEnabledRef\.current === false/);
-  assert.match(appSource, /if \(suppressResumeWheel\)[\s\S]*resumeWheelTimer = window\.setTimeout/);
-  assert.match(appSource, /resumeWheelTimer = window\.setTimeout\(\(\) => \{ suppressResumeWheel = false; \}, 900\)/);
   assert.match(appSource, /previousFocus\?\.focus\?\.\(\{ preventScroll: true \}\)/);
+  assert.match(appSource, /const pendingReturnScrollYRef = useRef\(null\)/);
   assert.match(appSource, /contentReturnY: returnScrollY/);
   assert.match(appSource, /restoreReaderReturnPosition\(returnScrollY\)/);
   assert.match(appSource, /skipHashRestoreRef\.current = true/);
+  assert.match(appSource, /window\.requestAnimationFrame\(\(\) => \{\s*window\.requestAnimationFrame\(\(\) => \{\s*window\.scrollTo\(\{ top: returnScrollY, behavior: "auto" \}\)/);
 });
 
 test("published projects expose their primary external destinations", async () => {

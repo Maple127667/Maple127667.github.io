@@ -19,6 +19,8 @@ import {
 } from "./content/articles/index.js";
 import { profile, technologyGroups } from "./content/profile.js";
 import { projects } from "./content/projects/index.js";
+import { PortfolioJourney } from "./PortfolioJourney.jsx";
+import { getPortfolioJourneyMetrics } from "./portfolioJourneyTimeline.js";
 import { VibeCodingOpening } from "./VibeCodingIntro.jsx";
 import { VibeBootLoader } from "./VibeBootLoader.jsx";
 import StarField from "./StarField.jsx";
@@ -36,10 +38,10 @@ const HARD_RELOAD_INTENT_TTL_MS = 15000;
 const sectionRailItems = [
   { id: "top", number: "01", label: "首页" },
   { id: "projects", number: "02", label: "作品" },
-  { id: "about", number: "03", label: "关于我" },
-  { id: "notes", number: "04", label: "文章" },
-  { id: "contact", number: "05", label: "联系" },
+  { id: "stack", number: "03", label: "技术栈" },
+  { id: "contact", number: "04", label: "联系" },
 ];
+const portfolioJourneyMetrics = getPortfolioJourneyMetrics(projects.length);
 
 const pendingArticleSlots = ["03", "04"];
 
@@ -151,7 +153,7 @@ function Header({ onReplay }) {
   return <header className="site-header">
     <a className="wordmark" href="#top" aria-label="Maple 首页">MAPLE <span aria-hidden="true" /></a>
     <button className="menu-toggle" type="button" onClick={() => setMenuOpen((value) => !value)} aria-expanded={menuOpen} aria-controls="site-navigation" aria-label={menuOpen ? "关闭菜单" : "打开菜单"}>{menuOpen ? <X size={22} /> : <List size={22} />}</button>
-    <nav id="site-navigation" className={`site-nav${menuOpen ? " is-open" : ""}`} aria-label="主导航"><a href="#projects" onClick={close}>作品</a><a href="#about" onClick={close}>关于我</a><a href="#notes" onClick={close}>文章</a><a href="#contact" onClick={close}>联系</a>{onReplay && <button className="site-nav__replay" type="button" onClick={() => { close(); onReplay(); }}>重播构建</button>}</nav>
+    <nav id="site-navigation" className={`site-nav${menuOpen ? " is-open" : ""}`} aria-label="主导航"><a href="#top" onClick={close}>关于我</a><a href="#projects" onClick={close}>作品</a><a href="#stack" onClick={close}>技术栈</a><a href="#contact" onClick={close}>联系</a>{onReplay && <button className="site-nav__replay" type="button" onClick={() => { close(); onReplay(); }}>重播构建</button>}</nav>
     <span className="scroll-meter" aria-hidden="true" />
   </header>;
 }
@@ -737,22 +739,15 @@ export function App() {
       paused={booting}
       runKey={introRunKey}
       onComplete={completeOpening}
+      settledTrackVh={portfolioJourneyMetrics.trackVh}
+      journeyWaypoints={portfolioJourneyMetrics.waypoints}
       chrome={<><Header onReplay={replayOpening} /><SectionRail /></>}
       hero={<HeroSection forceSceneFallback={sceneLoad.forceFallback} onSceneProgress={updateSceneLoad} onSceneReady={completeSceneLoad} />}
+      journey={<PortfolioJourney active={!introActive && !booting} projects={projects} onOpenProject={openProject} />}
     />
-    <section className="projects" id="projects" aria-labelledby="works-title">
-      <div className="project-panel snap-panel">
-        <div className="section-heading"><p id="works-title"><span aria-hidden="true" /> 我的项目</p><a href="#contact">VIEW ALL WORKS <ArrowRight size={17} aria-hidden="true" /></a></div>
-        <ProjectSection project={projects[0]} onOpenProject={openProject} />
-      </div>
-      <FeaturedEssayInterlude article={featuredArticle} onOpenArticle={openArticle} />
-      <ProjectArchive items={projects.slice(1)} onOpenProject={openProject} />
-    </section>
-    <ProfileSection />
-    <NotesSection onOpenArticle={openArticle} />
     <section className="contact snap-panel" id="contact" aria-labelledby="contact-title">
       <div className="contact__copy">
-        <p className="eyebrow">CONTACT / 05 / SAY HELLO</p>
+        <p className="eyebrow">CONTACT / 04 / SAY HELLO</p>
         <h2 id="contact-title">一起做点有意思的事 <em>/</em></h2>
         <p>如果你有想法或项目，欢迎随时联系我。</p>
         <div className="contact__links">
@@ -760,8 +755,8 @@ export function App() {
           <a href={profile.github.url} target="_blank" rel="noreferrer"><GithubLogo size={22} aria-hidden="true" /><span><small>GITHUB</small>{profile.github.label}</span></a>
           <button className="contact__wechat-id" type="button" aria-haspopup="dialog" onClick={() => setWechatOpen(true)}><WechatLogo size={22} aria-hidden="true" /><span><small>WECHAT</small>{profile.wechat.label}</span></button>
         </div>
+        <a className="contact__return" href="#top"><span>BACK TO TOP</span><ArrowUpRight size={19} aria-hidden="true" /></a>
       </div>
-      <a className="contact__arrow" href="#top" aria-label="返回顶部"><ArrowUpRight size={32} aria-hidden="true" /></a>
     </section>
     <WechatDialog open={wechatOpen} onClose={() => setWechatOpen(false)} />
     <ArticleReader article={booting ? null : activeArticle} onClose={closeContent} />

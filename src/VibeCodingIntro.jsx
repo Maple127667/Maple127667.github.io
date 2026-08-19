@@ -492,6 +492,9 @@ export function VibeCodingOpening({
   onComplete,
   chrome,
   hero,
+  journey,
+  settledTrackVh = 100,
+  journeyWaypoints = [],
 }) {
   const reducedMotion = usePrefersReducedMotion();
   const playbackPlan = useMemo(() => getOpeningPlaybackPlan(reducedMotion), [reducedMotion]);
@@ -859,7 +862,16 @@ export function VibeCodingOpening({
     ref={trackRef}
     className="opening-scroll-track"
     data-track-active={isRunning ? "true" : "false"}
+    data-has-journey={journey ? "true" : "false"}
+    style={{ "--opening-settled-size": `${settledTrackVh}svh` }}
   >
+    {journey && journeyWaypoints.map((waypoint) => <span
+      className="opening-scroll-track__waypoint"
+      id={waypoint.id}
+      key={waypoint.id}
+      style={{ top: `${waypoint.topVh}svh` }}
+      aria-hidden="true"
+    />)}
     <div
       ref={stageRef}
       className={`opening-stage${isRunning ? " is-running" : " is-complete"}`}
@@ -880,6 +892,11 @@ export function VibeCodingOpening({
         <span className="vibe-intro__preview-state" key={displayPreview}>{displayPreview.toUpperCase()}</span>
       </p>}
     </div>
+    {journey && <div
+      className="opening-stage__journey"
+      aria-hidden={isRunning ? "true" : undefined}
+      inert={isRunning ? true : undefined}
+    >{journey}</div>}
 
     {isRunning && <div className="vibe-intro" role="region" aria-label="Vibe Coding 开场演示">
       <span className="vibe-intro__progress" aria-hidden="true" />

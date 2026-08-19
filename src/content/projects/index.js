@@ -38,6 +38,9 @@ function createProject(path, source) {
     category: String(data.category),
     excerpt: String(data.excerpt),
     cover: String(data.cover),
+    technologies: Array.isArray(data.technologies)
+      ? data.technologies.map((technology) => String(technology).trim()).filter(Boolean)
+      : [],
     status: data.status ? String(data.status) : null,
     align: data.align === "left" ? "left" : "right",
     ...parseMarkdownContent(content),
