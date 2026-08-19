@@ -20,6 +20,7 @@ import {
 import { profile, technologyGroups } from "./content/profile.js";
 import { projects } from "./content/projects/index.js";
 import { VibeCodingOpening } from "./VibeCodingIntro.jsx";
+import StarField from "./StarField.jsx";
 
 const LazyAsteroidScene = lazy(() => import("./AsteroidScene.jsx"));
 const INTRO_SESSION_KEY = "maple-vibe-opening-v1";
@@ -139,6 +140,7 @@ function Header({ onReplay }) {
 
 function HeroSection() {
   return <section className="hero snap-panel" aria-labelledby="hero-title">
+    <StarField />
     <div className="hero__copy"><p className="eyebrow">{profile.name.toUpperCase()} / PORTFOLIO + NOTES 2026</p><h1 id="hero-title"><span className="hero__name">{profile.name.toUpperCase()} <em>/</em></span><span className="hero__role-lockup"><span className="hero__role-en">CREATIVE DEVELOPER</span><span className="hero__role-cn">创意开发者<br />AI 应用与 Agent 系统</span></span></h1><p className="hero__statement">{profile.heroStatement[0]}<br />{profile.heroStatement[1]}</p><p className="availability"><span aria-hidden="true" />{profile.availability}</p><a className="primary-button" href="#projects">查看作品 <ArrowUpRight size={18} weight="bold" aria-hidden="true" /></a><p className="location">{profile.location}<br />© {profile.name.toUpperCase()} 2026</p></div>
     <div className="hero__visual"><DeferredAsteroidScene /></div>
   </section>;

@@ -370,50 +370,6 @@ export default function AsteroidScene() {
         canvas.dataset.asteroidModel = "procedural-fallback";
       },
     );
-    const createFieldGeometry = (count, baseRadius, seed) => {
-      const positions = [];
-      for (let index = 0; index < count; index += 1) {
-        const y = 1 - (index / Math.max(1, count - 1)) * 2;
-        const radial = Math.sqrt(Math.max(0, 1 - y * y));
-        const angle = index * 2.399963 + seed;
-        const distance = baseRadius + (hash(index, seed) - 0.5) * 0.72;
-        positions.push(
-          Math.cos(angle) * radial * distance,
-          y * distance,
-          Math.sin(angle) * radial * distance,
-        );
-      }
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-      return geometry;
-    };
-
-    const ringMaterial = new THREE.PointsMaterial({
-      color: 0x7894aa,
-      size: 0.018,
-      transparent: true,
-      opacity: 0.16,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      sizeAttenuation: true,
-    });
-    const energyRing = new THREE.Points(createFieldGeometry(isCompact ? 54 : 92, 2.74, 0.8), ringMaterial);
-    energyRing.rotation.set(0.28, 0.35, -0.18);
-    systemGroup.add(energyRing);
-
-    const bandMaterial = new THREE.PointsMaterial({
-      color: 0x405d78,
-      size: 0.012,
-      transparent: true,
-      opacity: 0.08,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      sizeAttenuation: true,
-    });
-    const energyBand = new THREE.Points(createFieldGeometry(isCompact ? 28 : 46, 3.3, 2.4), bandMaterial);
-    energyBand.rotation.set(-0.35, 0.2, 0.44);
-    systemGroup.add(energyBand);
-
     const shockwaveMaterial = new THREE.MeshBasicMaterial({
       color: 0xd7ff55,
       transparent: true,
@@ -462,28 +418,6 @@ export default function AsteroidScene() {
       };
     });
     if (shardMesh.instanceColor) shardMesh.instanceColor.needsUpdate = true;
-
-    const starPositions = [];
-    const starCount = isCompact ? 150 : 280;
-    for (let index = 0; index < starCount; index += 1) {
-      const angle = index * 2.39996;
-      const radius = 3.1 + hash(index, 2) * 3.5;
-      starPositions.push(
-        Math.cos(angle) * radius,
-        (hash(index, 6) - 0.5) * 6.2,
-        Math.sin(angle) * radius - 1.8,
-      );
-    }
-    const starsGeometry = new THREE.BufferGeometry();
-    starsGeometry.setAttribute("position", new THREE.Float32BufferAttribute(starPositions, 3));
-    const starsMaterial = new THREE.PointsMaterial({
-      color: 0x8297aa,
-      size: 0.018,
-      transparent: true,
-      opacity: 0.5,
-    });
-    const stars = new THREE.Points(starsGeometry, starsMaterial);
-    scene.add(stars);
 
     scene.add(new THREE.HemisphereLight(0xc4d5e2, 0x02050b, 0.84));
     const keyLight = new THREE.DirectionalLight(0xf0f4f7, 4.8);
@@ -560,8 +494,6 @@ export default function AsteroidScene() {
       shockwave.visible = false;
       shockwaveMaterial.opacity = 0;
       collisionLight.intensity = 0;
-      ringMaterial.opacity = 0.16;
-      bandMaterial.opacity = 0.08;
       resetTrails();
       updateSeedLabel();
       setSceneStatus(
@@ -709,8 +641,6 @@ export default function AsteroidScene() {
         shockwave.scale.setScalar(0.25 + eased * 5.5);
         shockwaveMaterial.opacity = (1 - progress) * 0.9;
         collisionLight.intensity = (1 - progress) * 12;
-        ringMaterial.opacity = 0.42 + Math.sin(progress * Math.PI) * 0.52;
-        bandMaterial.opacity = 0.08 + Math.sin(progress * Math.PI) * 0.24;
         if (progress >= 1) {
           phase = "hold";
           phaseTime = 0;
@@ -724,7 +654,6 @@ export default function AsteroidScene() {
         const progress = Math.min(phaseTime / 0.18, 1);
         shockwaveMaterial.opacity = 0;
         collisionLight.intensity = 0;
-        ringMaterial.opacity = 0.25 + Math.sin(runningTime * 8) * 0.08;
         if (progress >= 1) {
           phase = "reassemble";
           phaseTime = 0;
@@ -737,8 +666,6 @@ export default function AsteroidScene() {
         const progress = Math.min(phaseTime / 1.35, 1);
         updateShardMatrices("reassemble", progress);
         shardMaterial.opacity = 1 - smoothstep(Math.max(0, (progress - 0.72) / 0.28));
-        ringMaterial.opacity = 0.3 + Math.sin(progress * Math.PI * 5) * 0.18;
-        bandMaterial.opacity = 0.1 + Math.sin(progress * Math.PI) * 0.3;
         collisionLight.position.set(0, 0, 1.5);
         collisionLight.intensity = Math.sin(progress * Math.PI) * 4;
         const bodyProgress = smoothstep(Math.max(0, (progress - 0.68) / 0.32));
@@ -757,21 +684,48 @@ export default function AsteroidScene() {
 
     const pointer = new THREE.Vector2();
     const pointerTarget = new THREE.Vector2();
+    let cameraDistance = 8.9;
     let isVisible = true;
     const onPointerMove = (event) => {
-      const bounds = canvas.getBoundingClientRect();
-      pointerTarget.x = ((event.clientX - bounds.left) / bounds.width - 0.5) * 2;
-      pointerTarget.y = ((event.clientY - bounds.top) / bounds.height - 0.5) * 2;
+      if (reduceMotion || event.pointerType === "touch") return;
+      const viewportWidth = Math.max(window.innerWidth, 1);
+      const viewportHeight = Math.max(window.innerHeight, 1);
+      pointerTarget.x = THREE.MathUtils.clamp((event.clientX / viewportWidth - 0.5) * 2, -1, 1);
+      pointerTarget.y = THREE.MathUtils.clamp((event.clientY / viewportHeight - 0.5) * 2, -1, 1);
     };
     const onPointerLeave = () => pointerTarget.set(0, 0);
-    canvas.addEventListener("pointermove", onPointerMove);
-    canvas.addEventListener("pointerleave", onPointerLeave);
+    const pointerMoveOptions = { passive: true };
+    window.addEventListener("pointermove", onPointerMove, pointerMoveOptions);
+    window.addEventListener("blur", onPointerLeave);
+    document.documentElement.addEventListener("pointerleave", onPointerLeave);
 
     const resize = () => {
-      const { width, height } = canvas.getBoundingClientRect();
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
       if (!width || !height) return;
       renderer.setSize(width, height, false);
       camera.aspect = width / height;
+      const viewportWidth = window.innerWidth;
+      const visibleFocusX = viewportWidth <= 760 ? 0.66 : viewportWidth <= 1080 ? 0.5 : 0.68;
+      const focusY = viewportWidth <= 760 ? 0.75 : 0.535;
+      const visibleWidth = Math.min(viewportWidth, width);
+      const horizontalOverscan = Math.max(0, (width - visibleWidth) * 0.5);
+      const focusX = (horizontalOverscan + visibleFocusX * visibleWidth) / width;
+      const previousVisualHeight = viewportWidth <= 760
+        ? height * 0.858
+        : Math.max(1, height - 176) * 1.1;
+      cameraDistance = viewportWidth <= 760
+        ? 9.2
+        : THREE.MathUtils.clamp(7.9 * (height / previousVisualHeight), 8.6, 9.5);
+      camera.setViewOffset(
+        width,
+        height,
+        (0.5 - focusX) * width,
+        (0.5 - focusY) * height,
+        width,
+        height,
+      );
+      canvas.dataset.sceneFocus = `${Math.round(visibleFocusX * 100)}%,${Math.round(focusY * 100)}%`;
       camera.updateProjectionMatrix();
     };
     const resizeObserver = new ResizeObserver(resize);
@@ -817,18 +771,12 @@ export default function AsteroidScene() {
         updateCollisionCycle(delta);
       }
 
-      energyRing.rotation.x = 0.28 + Math.sin(runningTime * 0.11) * 0.08;
-      energyRing.rotation.y = 0.35 + runningTime * 0.018;
-      energyRing.rotation.z = -0.18 + runningTime * 0.012;
-      energyBand.rotation.x = -0.35 + Math.cos(runningTime * 0.09) * 0.1;
-      energyBand.rotation.y = 0.2 - runningTime * 0.016;
-      energyBand.rotation.z = 0.44 + runningTime * 0.01;
-      systemGroup.rotation.y = -0.28 + Math.sin(runningTime * 0.09) * 0.18 + pointer.x * 0.13;
-      systemGroup.rotation.x = -0.12 + Math.cos(runningTime * 0.075) * 0.1 - pointer.y * 0.08;
+      systemGroup.rotation.y = -0.28 + Math.sin(runningTime * 0.09) * 0.18 + pointer.x * 0.24;
+      systemGroup.rotation.x = -0.12 + Math.cos(runningTime * 0.075) * 0.1 - pointer.y * 0.16;
       systemGroup.rotation.z = Math.sin(runningTime * 0.06) * 0.07;
-      camera.position.x = Math.sin(runningTime * 0.11) * 0.3 + pointer.x * 0.15;
-      camera.position.y = Math.cos(runningTime * 0.085) * 0.18 + pointer.y * -0.11;
-      camera.position.z = 7.9 + Math.sin(runningTime * 0.07) * 0.12;
+      camera.position.x = Math.sin(runningTime * 0.11) * 0.3 + pointer.x * 0.42;
+      camera.position.y = Math.cos(runningTime * 0.085) * 0.18 + pointer.y * -0.3;
+      camera.position.z = cameraDistance + Math.sin(runningTime * 0.07) * 0.12;
       camera.lookAt(0, 0, 0);
       renderer.render(scene, camera);
     };
@@ -838,8 +786,9 @@ export default function AsteroidScene() {
       sceneDisposed = true;
       applySeedRef.current = null;
       window.cancelAnimationFrame(frame);
-      canvas.removeEventListener("pointermove", onPointerMove);
-      canvas.removeEventListener("pointerleave", onPointerLeave);
+      window.removeEventListener("pointermove", onPointerMove, pointerMoveOptions);
+      window.removeEventListener("blur", onPointerLeave);
+      document.documentElement.removeEventListener("pointerleave", onPointerLeave);
       resizeObserver.disconnect();
       intersectionObserver.disconnect();
       bodies.forEach((body) => {
@@ -849,16 +798,10 @@ export default function AsteroidScene() {
         body.trailMaterial.dispose();
         body.trailPointsMaterial.dispose();
       });
-      energyRing.geometry.dispose();
-      energyBand.geometry.dispose();
-      ringMaterial.dispose();
-      bandMaterial.dispose();
       shockwave.geometry.dispose();
       shockwaveMaterial.dispose();
       shardGeometry.dispose();
       shardMaterial.dispose();
-      starsGeometry.dispose();
-      starsMaterial.dispose();
       bennuTexture?.dispose();
       rockTexture.dispose();
       renderer.dispose();

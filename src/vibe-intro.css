@@ -1,3 +1,31 @@
+.opening-scroll-track {
+  --opening-seek-range: 480svh;
+  position: relative;
+  inline-size: 100%;
+  block-size: 100svh;
+  overflow: visible;
+  overflow-anchor: none;
+}
+
+.opening-scroll-track[data-track-active="true"] {
+  block-size: calc(100svh + var(--opening-seek-range));
+}
+
+.opening-scroll-track[data-track-active="true"] > .opening-stage {
+  position: sticky;
+  top: 0;
+  inline-size: 100%;
+  block-size: 100svh;
+  min-block-size: 100svh;
+}
+
+.opening-scroll-track[data-track-active="false"] > .opening-stage {
+  position: relative;
+  top: auto;
+  block-size: 100svh;
+  min-block-size: 100svh;
+}
+
 .opening-stage {
   --vibe-acid: #c8ff23;
   --vibe-error: #ff716d;
@@ -121,26 +149,112 @@
   transition: opacity 200ms ease;
 }
 
+.opening-stage .hero__starfield {
+  position: absolute;
+  z-index: 0;
+  inset: -5%;
+  inline-size: 110%;
+  block-size: 110%;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  will-change: transform, opacity;
+  transform: translate3d(var(--vibe-star-x, 0px), var(--vibe-star-y, 0px), 0);
+  transition:
+    opacity 260ms ease,
+    transform 140ms cubic-bezier(0.2, 0.72, 0.2, 1);
+}
+
+.opening-stage .hero__starfield::before {
+  content: "";
+  position: absolute;
+  inset: -22%;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 72% 20% at 56% 78%,
+    rgba(167, 188, 208, 0.056) 0%,
+    rgba(139, 166, 190, 0.027) 36%,
+    rgba(104, 137, 166, 0.009) 56%,
+    transparent 76%
+  );
+  filter: blur(18px);
+  transform: rotate(-11deg);
+  transform-origin: 56% 78%;
+}
+
+.opening-stage .hero__star {
+  position: absolute;
+  left: var(--star-x);
+  top: var(--star-y);
+  display: block;
+  inline-size: var(--star-size);
+  block-size: var(--star-size);
+  border-radius: 50%;
+  background: rgb(var(--star-color));
+  opacity: var(--star-opacity);
+  transform: translate(-50%, -50%);
+}
+
+.opening-stage .hero__star--bright::before {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  inline-size: var(--star-halo-size);
+  block-size: var(--star-halo-size);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgb(var(--star-color) / 0.14) 0%,
+    rgb(var(--star-color) / 0.05) 28%,
+    transparent 70%
+  );
+  content: "";
+  transform: translate(-50%, -50%);
+}
+
+.opening-stage .hero__star--twinkle {
+  animation: restrained-star-twinkle var(--star-twinkle-duration) ease-in-out
+    var(--star-twinkle-delay) infinite alternate;
+}
+
+@keyframes restrained-star-twinkle {
+  from {
+    opacity: var(--star-twinkle-low);
+  }
+
+  to {
+    opacity: var(--star-opacity);
+  }
+}
+
 .opening-stage[data-intro-active="true"][data-preview="good-dark"] .hero__copy,
 .opening-stage[data-intro-active="true"][data-preview="good-dark"] .hero__visual,
-.opening-stage[data-intro-active="true"][data-preview="good-space"] .hero__copy {
+.opening-stage[data-intro-active="true"][data-preview="good-space"] .hero__copy,
+.opening-stage[data-intro-active="true"][data-preview="good-space"] .hero__visual,
+.opening-stage[data-intro-active="true"][data-preview="good-copy"] .hero__visual,
+.opening-stage[data-intro-active="true"][data-preview="good-acid"] .hero__visual {
   opacity: 0;
 }
 
-.opening-stage[data-intro-active="true"][data-preview="good-space"] .hero__visual {
-  opacity: 0.56;
+.opening-stage[data-intro-active="true"][data-preview="good-space"] .hero__starfield {
+  opacity: 0.66;
 }
 
-.opening-stage[data-intro-active="true"][data-preview="good-copy"] .hero__visual {
-  opacity: 0.36;
+.opening-stage[data-intro-active="true"][data-preview="good-copy"] .hero__starfield {
+  opacity: 0.46;
 }
 
 .opening-stage[data-intro-active="true"][data-preview="good-copy"] {
   --acid: #d9dee2;
 }
 
-.opening-stage[data-intro-active="true"][data-preview="good-acid"] .hero__visual {
-  opacity: 0.48;
+.opening-stage[data-intro-active="true"][data-preview="good-acid"] .hero__starfield {
+  opacity: 0.5;
+}
+
+.opening-stage[data-intro-active="true"][data-preview="good-three"] .hero__visual,
+.opening-stage[data-intro-active="true"][data-preview="ready"] .hero__visual {
+  opacity: 1;
 }
 
 .opening-stage[data-phase="publishing"] .opening-stage__hero-viewport,
@@ -211,7 +325,34 @@
   box-shadow: 0 0 14px rgba(200, 255, 35, 0.34);
   transform: scaleX(var(--vibe-progress, 0));
   transform-origin: left;
-  transition: transform 700ms linear;
+  transition: none;
+}
+
+.opening-scroll-track .vibe-intro__progress {
+  z-index: 16;
+}
+
+.vibe-intro__scroll-status {
+  position: absolute;
+  z-index: 14;
+  bottom: 14px;
+  left: 16px;
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  color: #747d85;
+  font: 600 12px/1 var(--vibe-cmd-font, var(--code));
+  letter-spacing: 0.035em;
+  pointer-events: none;
+}
+
+.vibe-intro__scroll-status strong {
+  min-inline-size: 4ch;
+  color: var(--vibe-acid);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 .vibe-intro__topbar {
@@ -1715,7 +1856,7 @@
   padding: 12px 14px 14px;
   display: block;
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: hidden;
   color: var(--vibe-cmd-fg);
   background: var(--vibe-cmd-bg);
   font: 500 14px/1.48 var(--vibe-cmd-font);
@@ -1900,6 +2041,422 @@
     top: 0;
     left: 0;
     transform: none;
+  }
+}
+
+/*
+ * Good-chain preview contract.
+ *
+ * Research keeps the last committed preview on screen. Identity and Three.js
+ * therefore become visible only after their transcript's first [write] line
+ * advances data-preview to the matching state.
+ */
+.opening-stage[data-intro-active="true"] .hero__copy > .eyebrow,
+.opening-stage[data-intro-active="true"] .hero__name,
+.opening-stage[data-intro-active="true"] .hero__name em,
+.opening-stage[data-intro-active="true"] .hero__role-lockup,
+.opening-stage[data-intro-active="true"] .hero__role-en,
+.opening-stage[data-intro-active="true"] .hero__role-cn,
+.opening-stage[data-intro-active="true"] .hero__statement,
+.opening-stage[data-intro-active="true"] .availability,
+.opening-stage[data-intro-active="true"] .availability span,
+.opening-stage[data-intro-active="true"] .location {
+  transition:
+    color 260ms ease,
+    opacity 220ms ease,
+    background-color 220ms ease,
+    border-color 260ms ease,
+    font-size 380ms cubic-bezier(0.2, 0.72, 0.2, 1),
+    font-weight 380ms cubic-bezier(0.2, 0.72, 0.2, 1),
+    line-height 380ms cubic-bezier(0.2, 0.72, 0.2, 1),
+    letter-spacing 320ms ease,
+    margin 380ms cubic-bezier(0.2, 0.72, 0.2, 1),
+    padding 380ms cubic-bezier(0.2, 0.72, 0.2, 1),
+    gap 320ms ease,
+    transform 420ms cubic-bezier(0.2, 0.72, 0.2, 1),
+    box-shadow 260ms ease;
+}
+
+.opening-stage[data-intro-active="true"] .primary-button {
+  transition:
+    color 260ms ease,
+    opacity 260ms ease,
+    background-color 260ms ease,
+    border-color 260ms ease,
+    transform 320ms cubic-bezier(0.2, 0.72, 0.2, 1);
+}
+
+.opening-stage[data-intro-active="true"] .hero__visual {
+  z-index: 2;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translate3d(var(--vibe-body-x, 0px), var(--vibe-body-y, 0px), 0);
+  transition:
+    opacity 420ms cubic-bezier(0.2, 0.72, 0.2, 1),
+    transform 110ms cubic-bezier(0.2, 0.72, 0.2, 1),
+    visibility 0s linear 420ms;
+}
+
+.opening-stage .hero {
+  isolation: isolate;
+}
+
+.opening-stage .hero__starfield {
+  z-index: 0;
+}
+
+.opening-stage[data-intro-active="true"] .hero__copy {
+  z-index: 3;
+}
+
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-space"],
+  [data-preview="good-copy-rough"],
+  [data-preview="good-copy-muted"],
+  [data-preview="good-copy-typed"],
+  [data-preview="good-copy-refined"],
+  [data-preview="good-three"],
+  [data-preview="ready"]
+) .hero__starfield {
+  opacity: 0.78;
+}
+
+.opening-stage[data-intro-active="true"][data-preview="good-space"] .hero__starfield {
+  opacity: 0.9;
+}
+
+/* Deliberately under-designed first identity pass: everything speaks at once. */
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-copy-rough"],
+  [data-preview="good-copy-muted"]
+) .hero__copy {
+  opacity: 1;
+}
+
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-copy-rough"],
+  [data-preview="good-copy-muted"]
+) .hero__copy > .eyebrow,
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-copy-rough"],
+  [data-preview="good-copy-muted"]
+) .hero__name,
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-copy-rough"],
+  [data-preview="good-copy-muted"]
+) .hero__role-en,
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-copy-rough"],
+  [data-preview="good-copy-muted"]
+) .hero__role-cn,
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-copy-rough"],
+  [data-preview="good-copy-muted"]
+) .hero__statement,
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-copy-rough"],
+  [data-preview="good-copy-muted"]
+) .availability,
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-copy-rough"],
+  [data-preview="good-copy-muted"]
+) .location {
+  color: #f0f2f3;
+  font-size: clamp(24px, 2vw, 30px);
+  font-weight: 500;
+  line-height: 1.46;
+  letter-spacing: 0;
+}
+
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-copy-rough"],
+  [data-preview="good-copy-muted"]
+) .hero__copy > .eyebrow {
+  margin: 0 0 7px;
+  text-transform: none;
+  transform: translate3d(9px, 0, 0);
+}
+
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-copy-rough"],
+  [data-preview="good-copy-muted"]
+) .hero__name {
+  transform: translate3d(-3px, 0, 0);
+}
+
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-copy-rough"],
+  [data-preview="good-copy-muted"]
+) .hero__name em {
+  opacity: 0;
+  color: transparent;
+  transform: scale(0.72);
+}
+
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-copy-rough"],
+  [data-preview="good-copy-muted"]
+) .hero__role-lockup {
+  margin-top: 3px;
+  gap: 5px 12px;
+  transform: translate3d(13px, 0, 0);
+}
+
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-copy-rough"],
+  [data-preview="good-copy-muted"]
+) .hero__role-cn {
+  padding-left: 0;
+  border-color: transparent;
+}
+
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-copy-rough"],
+  [data-preview="good-copy-muted"]
+) .hero__statement {
+  margin: 4px 0 0;
+  transform: translate3d(-6px, 0, 0);
+}
+
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-copy-rough"],
+  [data-preview="good-copy-muted"]
+) .availability {
+  margin: 5px 0 0;
+  gap: 0;
+  transform: translate3d(15px, 0, 0);
+}
+
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-copy-rough"],
+  [data-preview="good-copy-muted"]
+) .availability span {
+  opacity: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: scale(0.6);
+}
+
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-copy-rough"],
+  [data-preview="good-copy-muted"]
+) .primary-button {
+  opacity: 0.24;
+  color: rgba(240, 242, 243, 0.72);
+  border-color: rgba(240, 242, 243, 0.22);
+  background: transparent;
+}
+
+/* First correction beat: only secondary information recedes. */
+.opening-stage[data-intro-active="true"][data-preview="good-copy-muted"] .hero__copy > .eyebrow,
+.opening-stage[data-intro-active="true"][data-preview="good-copy-muted"] .hero__role-en,
+.opening-stage[data-intro-active="true"][data-preview="good-copy-muted"] .hero__role-cn,
+.opening-stage[data-intro-active="true"][data-preview="good-copy-muted"] .availability,
+.opening-stage[data-intro-active="true"][data-preview="good-copy-muted"] .location {
+  color: #8793a0;
+}
+
+/* Second beat: type hierarchy is restored, but lime is not yet introduced. */
+.opening-stage[data-intro-active="true"][data-preview="good-copy-typed"] .hero__name em {
+  opacity: 0;
+  color: transparent;
+  transform: scale(0.72);
+}
+
+.opening-stage[data-intro-active="true"][data-preview="good-copy-typed"] .hero__role-cn {
+  border-color: transparent;
+}
+
+.opening-stage[data-intro-active="true"][data-preview="good-copy-typed"] .availability span {
+  opacity: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: scale(0.6);
+}
+
+/* The final correction beat introduces narrowly scoped lime. */
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-copy-typed"],
+  [data-preview="good-copy-refined"],
+  [data-preview="good-three"],
+  [data-preview="ready"]
+) .hero__copy {
+  opacity: 1;
+}
+
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-copy-typed"],
+  [data-preview="good-copy-refined"],
+  [data-preview="good-three"],
+  [data-preview="ready"]
+) .hero__copy > .eyebrow,
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-copy-typed"],
+  [data-preview="good-copy-refined"],
+  [data-preview="good-three"],
+  [data-preview="ready"]
+) .hero__role-en,
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-copy-typed"],
+  [data-preview="good-copy-refined"],
+  [data-preview="good-three"],
+  [data-preview="ready"]
+) .hero__role-cn,
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-copy-typed"],
+  [data-preview="good-copy-refined"],
+  [data-preview="good-three"],
+  [data-preview="ready"]
+) .availability,
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-copy-typed"],
+  [data-preview="good-copy-refined"],
+  [data-preview="good-three"],
+  [data-preview="ready"]
+) .location {
+  color: #8793a0;
+}
+
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-copy-typed"],
+  [data-preview="good-copy-refined"],
+  [data-preview="good-three"],
+  [data-preview="ready"]
+) .hero__name,
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-copy-typed"],
+  [data-preview="good-copy-refined"],
+  [data-preview="good-three"],
+  [data-preview="ready"]
+) .hero__statement {
+  color: #eef2f3;
+}
+
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-copy-refined"],
+  [data-preview="good-three"],
+  [data-preview="ready"]
+) .hero__name em,
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-copy-refined"],
+  [data-preview="good-three"],
+  [data-preview="ready"]
+) .availability {
+  color: var(--vibe-acid);
+}
+
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-copy-refined"],
+  [data-preview="good-three"],
+  [data-preview="ready"]
+) .hero__role-cn {
+  border-color: rgba(200, 255, 35, 0.38);
+}
+
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-copy-refined"],
+  [data-preview="good-three"],
+  [data-preview="ready"]
+) .availability span {
+  background: var(--vibe-acid);
+  box-shadow: 0 0 12px rgba(200, 255, 35, 0.66);
+}
+
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-three"],
+  [data-preview="ready"]
+) .hero__visual {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition-delay: 0ms;
+}
+
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-three"],
+  [data-preview="ready"]
+) .hero__starfield {
+  opacity: 0.7;
+}
+
+.opening-stage[data-intro-active="true"][data-phase="publishing"] .hero__starfield,
+.opening-stage[data-intro-active="false"] .hero__starfield {
+  opacity: 0.74;
+}
+
+@media (max-width: 760px) {
+  .opening-stage .hero__star:nth-child(n + 51) {
+    display: none;
+  }
+
+  .opening-stage[data-intro-active="true"]:is([data-preview="good-copy-rough"], [data-preview="good-copy-muted"]) .hero__copy > .eyebrow,
+  .opening-stage[data-intro-active="true"]:is([data-preview="good-copy-rough"], [data-preview="good-copy-muted"]) .hero__name,
+  .opening-stage[data-intro-active="true"]:is([data-preview="good-copy-rough"], [data-preview="good-copy-muted"]) .hero__role-en,
+  .opening-stage[data-intro-active="true"]:is([data-preview="good-copy-rough"], [data-preview="good-copy-muted"]) .hero__role-cn,
+  .opening-stage[data-intro-active="true"]:is([data-preview="good-copy-rough"], [data-preview="good-copy-muted"]) .hero__statement,
+  .opening-stage[data-intro-active="true"]:is([data-preview="good-copy-rough"], [data-preview="good-copy-muted"]) .availability,
+  .opening-stage[data-intro-active="true"]:is([data-preview="good-copy-rough"], [data-preview="good-copy-muted"]) .location {
+    font-size: clamp(18px, 5vw, 22px);
+  }
+
+  .opening-stage[data-intro-active="true"]:is([data-preview="good-copy-rough"], [data-preview="good-copy-muted"]) .hero__role-lockup {
+    gap: 2px 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opening-stage .hero__starfield {
+    animation: none !important;
+    transform: none;
+  }
+
+  .opening-stage .hero__star--twinkle {
+    animation: none !important;
+  }
+
+  .opening-stage[data-intro-active="true"] .hero__copy > .eyebrow,
+  .opening-stage[data-intro-active="true"] .hero__name,
+  .opening-stage[data-intro-active="true"] .hero__name em,
+  .opening-stage[data-intro-active="true"] .hero__role-lockup,
+  .opening-stage[data-intro-active="true"] .hero__role-en,
+  .opening-stage[data-intro-active="true"] .hero__role-cn,
+  .opening-stage[data-intro-active="true"] .hero__statement,
+  .opening-stage[data-intro-active="true"] .availability,
+  .opening-stage[data-intro-active="true"] .availability span,
+  .opening-stage[data-intro-active="true"] .location,
+  .opening-stage[data-intro-active="true"] .primary-button,
+  .opening-stage[data-intro-active="true"] .hero__visual {
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+
+  .opening-stage[data-intro-active="true"] .hero__visual {
+    transform: none;
+  }
+
+}
+
+@media (max-width: 760px) {
+  .opening-scroll-track {
+    --opening-seek-range: 360svh;
+  }
+
+  .vibe-intro__scroll-status {
+    bottom: 10px;
+    left: 10px;
+    gap: 8px;
+    font-size: 13px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opening-scroll-track {
+    --opening-seek-range: 140svh;
+  }
+
+  .opening-scroll-track .vibe-intro__progress {
+    transition: none !important;
   }
 }
 
@@ -2091,7 +2648,7 @@
 .vibe-intro__cmd-buffer {
   display: block;
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: hidden;
 }
 
 .vibe-intro__cmd-prompt,
