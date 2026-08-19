@@ -19,8 +19,10 @@ import {
 } from "./content/articles/index.js";
 import { profile, technologyGroups } from "./content/profile.js";
 import { projects } from "./content/projects/index.js";
+import { VibeCodingOpening } from "./VibeCodingIntro.jsx";
 
 const LazyAsteroidScene = lazy(() => import("./AsteroidScene.jsx"));
+const INTRO_SESSION_KEY = "maple-vibe-opening-v1";
 
 const sectionRailItems = [
   { id: "top", number: "01", label: "首页" },
@@ -70,200 +72,6 @@ function useScrollProgress() {
   }, []);
 }
 
-function useFullPageSnap(enabled) {
-  const previousEnabledRef = useRef(enabled);
-
-  useEffect(() => {
-    const root = document.documentElement;
-    const resumedFromReader = enabled && previousEnabledRef.current === false;
-    previousEnabledRef.current = enabled;
-    if (!enabled) {
-      root.dataset.snapPaused = "true";
-      return () => { delete root.dataset.snapPaused; };
-    }
-
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const getPanels = () => [...document.querySelectorAll(".snap-panel")];
-    const panelTop = (panel) => panel.getBoundingClientRect().top + window.scrollY;
-    const nearestIndex = () => {
-      const panels = getPanels();
-      let nearest = 0;
-      let nearestDistance = Number.POSITIVE_INFINITY;
-      panels.forEach((panel, index) => {
-        const distance = Math.abs(panel.getBoundingClientRect().top);
-        if (distance < nearestDistance) {
-          nearest = index;
-          nearestDistance = distance;
-        }
-      });
-      return nearest;
-    };
-    const clampIndex = (index) => Math.max(0, Math.min(getPanels().length - 1, index));
-
-    let lockedUntil = resumedFromReader ? window.performance.now() + 600 : 0;
-    let unlockTimer;
-    let settleTimer;
-    let resizeTimer;
-    let wheelReleaseTimer;
-    let resumeWheelTimer;
-    let suppressResumeWheel = resumedFromReader;
-    let wheelDistance = 0;
-    let gestureIndex = null;
-    let wheelGestureConsumed = false;
-    let touchStartY = 0;
-    let touchDistance = 0;
-    let touchIndex = null;
-    let touchTracking = false;
-
-    const setSnapMetadata = (index) => {
-      root.dataset.snapPanels = String(getPanels().length);
-      root.dataset.snapIndex = String(index);
-      root.dataset.snapThreshold = String(Math.round(Math.max(88, window.innerHeight * 0.12)));
-    };
-
-    const snapTo = (requestedIndex) => {
-      const panels = getPanels();
-      if (!panels.length) return;
-      const index = Math.max(0, Math.min(panels.length - 1, requestedIndex));
-      window.clearTimeout(unlockTimer);
-      window.clearTimeout(settleTimer);
-      root.classList.remove("is-snap-gesturing");
-      wheelDistance = 0;
-      gestureIndex = null;
-      touchDistance = 0;
-      touchIndex = null;
-      const duration = reduceMotion ? 40 : 680;
-      lockedUntil = window.performance.now() + duration;
-      panels[index].scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
-      setSnapMetadata(index);
-      unlockTimer = window.setTimeout(() => { lockedUntil = 0; }, duration);
-    };
-
-    const previewGesture = (index, distance, strength = 0.24) => {
-      const panels = getPanels();
-      const panel = panels[clampIndex(index)];
-      if (!panel) return;
-      const limit = Math.min(118, window.innerHeight * 0.15);
-      const offset = Math.max(-limit, Math.min(limit, distance * strength));
-      root.classList.add("is-snap-gesturing");
-      window.scrollTo(0, panelTop(panel) + offset);
-    };
-
-    const isReaderEvent = (event) => event.target?.closest?.(".article-reader");
-    const onWheel = (event) => {
-      if (isReaderEvent(event) || event.ctrlKey) return;
-      event.preventDefault();
-      window.clearTimeout(wheelReleaseTimer);
-      wheelReleaseTimer = window.setTimeout(() => {
-        wheelGestureConsumed = false;
-        wheelDistance = 0;
-        gestureIndex = null;
-      }, 180);
-      if (suppressResumeWheel) {
-        wheelGestureConsumed = true;
-        wheelDistance = 0;
-        gestureIndex = null;
-        window.clearTimeout(resumeWheelTimer);
-        resumeWheelTimer = window.setTimeout(() => {
-          suppressResumeWheel = false;
-          wheelGestureConsumed = false;
-        }, 240);
-        return;
-      }
-      if (window.performance.now() < lockedUntil) {
-        wheelGestureConsumed = true;
-        wheelDistance = 0;
-        gestureIndex = null;
-        return;
-      }
-      if (wheelGestureConsumed) return;
-      if (gestureIndex === null) gestureIndex = nearestIndex();
-      const multiplier = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
-      wheelDistance += event.deltaY * multiplier;
-      const threshold = Math.max(88, window.innerHeight * 0.12);
-      previewGesture(gestureIndex, wheelDistance);
-      window.clearTimeout(settleTimer);
-      if (Math.abs(wheelDistance) >= threshold) {
-        const direction = wheelDistance > 0 ? 1 : -1;
-        wheelGestureConsumed = true;
-        snapTo(gestureIndex + direction);
-      } else {
-        const returnIndex = gestureIndex;
-        settleTimer = window.setTimeout(() => snapTo(returnIndex), 150);
-      }
-    };
-
-    const onTouchStart = (event) => {
-      if (isReaderEvent(event) || event.touches.length !== 1 || window.performance.now() < lockedUntil) return;
-      touchStartY = event.touches[0].clientY;
-      touchDistance = 0;
-      touchIndex = nearestIndex();
-      touchTracking = true;
-    };
-
-    const onTouchMove = (event) => {
-      if (!touchTracking || isReaderEvent(event) || event.touches.length !== 1) return;
-      touchDistance = touchStartY - event.touches[0].clientY;
-      if (Math.abs(touchDistance) > 4 && event.cancelable) event.preventDefault();
-      previewGesture(touchIndex, touchDistance, 0.32);
-    };
-
-    const onTouchEnd = () => {
-      if (!touchTracking) return;
-      touchTracking = false;
-      const threshold = Math.max(62, window.innerHeight * 0.1);
-      const direction = touchDistance > 0 ? 1 : -1;
-      snapTo(Math.abs(touchDistance) >= threshold ? touchIndex + direction : touchIndex);
-    };
-
-    const onKeyDown = (event) => {
-      if (document.querySelector(".article-reader")) return;
-      if (event.target?.closest?.("a, button, input, textarea, select, [contenteditable='true']")) return;
-      const current = nearestIndex();
-      let next = null;
-      if (["ArrowDown", "PageDown"].includes(event.key)) next = current + 1;
-      if (["ArrowUp", "PageUp"].includes(event.key)) next = current - 1;
-      if (event.key === "Home") next = 0;
-      if (event.key === "End") next = getPanels().length - 1;
-      if (next === null) return;
-      event.preventDefault();
-      snapTo(next);
-    };
-
-    const onResize = () => {
-      window.clearTimeout(resizeTimer);
-      resizeTimer = window.setTimeout(() => setSnapMetadata(nearestIndex()), 120);
-    };
-
-    if (suppressResumeWheel) {
-      resumeWheelTimer = window.setTimeout(() => { suppressResumeWheel = false; }, 900);
-    }
-    setSnapMetadata(nearestIndex());
-    window.addEventListener("wheel", onWheel, { passive: false });
-    window.addEventListener("touchstart", onTouchStart, { passive: true });
-    window.addEventListener("touchmove", onTouchMove, { passive: false });
-    window.addEventListener("touchend", onTouchEnd, { passive: true });
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("resize", onResize);
-    return () => {
-      window.clearTimeout(unlockTimer);
-      window.clearTimeout(settleTimer);
-      window.clearTimeout(resizeTimer);
-      window.clearTimeout(wheelReleaseTimer);
-      window.clearTimeout(resumeWheelTimer);
-      root.classList.remove("is-snap-gesturing");
-      window.removeEventListener("wheel", onWheel);
-      window.removeEventListener("touchstart", onTouchStart);
-      window.removeEventListener("touchmove", onTouchMove);
-      window.removeEventListener("touchend", onTouchEnd);
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("resize", onResize);
-      delete root.dataset.snapPanels;
-      delete root.dataset.snapIndex;
-      delete root.dataset.snapThreshold;
-    };
-  }, [enabled]);
-}
 function AsteroidSceneFallback() {
   return <div className="asteroid-stage asteroid-loading" aria-hidden="true"><span className="scene-label scene-label--top">GRAVITY FIELD / INITIALIZING</span><span className="scene-label scene-label--bottom">THREE-BODY / STANDBY</span></div>;
 }
@@ -318,15 +126,30 @@ function SectionRail() {
   </nav>;
 }
 
-function Header() {
+function Header({ onReplay }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const close = () => setMenuOpen(false);
   return <header className="site-header">
     <a className="wordmark" href="#top" aria-label="Maple 首页">MAPLE <span aria-hidden="true" /></a>
     <button className="menu-toggle" type="button" onClick={() => setMenuOpen((value) => !value)} aria-expanded={menuOpen} aria-controls="site-navigation" aria-label={menuOpen ? "关闭菜单" : "打开菜单"}>{menuOpen ? <X size={22} /> : <List size={22} />}</button>
-    <nav id="site-navigation" className={`site-nav${menuOpen ? " is-open" : ""}`} aria-label="主导航"><a href="#projects" onClick={close}>作品</a><a href="#about" onClick={close}>关于我</a><a href="#notes" onClick={close}>文章</a><a href="#contact" onClick={close}>联系</a></nav>
+    <nav id="site-navigation" className={`site-nav${menuOpen ? " is-open" : ""}`} aria-label="主导航"><a href="#projects" onClick={close}>作品</a><a href="#about" onClick={close}>关于我</a><a href="#notes" onClick={close}>文章</a><a href="#contact" onClick={close}>联系</a>{onReplay && <button className="site-nav__replay" type="button" onClick={() => { close(); onReplay(); }}>重播构建</button>}</nav>
     <span className="scroll-meter" aria-hidden="true" />
   </header>;
+}
+
+function HeroSection() {
+  return <section className="hero snap-panel" aria-labelledby="hero-title">
+    <div className="hero__copy"><p className="eyebrow">{profile.name.toUpperCase()} / PORTFOLIO + NOTES 2026</p><h1 id="hero-title"><span className="hero__name">{profile.name.toUpperCase()} <em>/</em></span><span className="hero__role-lockup"><span className="hero__role-en">CREATIVE DEVELOPER</span><span className="hero__role-cn">创意开发者<br />AI 应用与 Agent 系统</span></span></h1><p className="hero__statement">{profile.heroStatement[0]}<br />{profile.heroStatement[1]}</p><p className="availability"><span aria-hidden="true" />{profile.availability}</p><a className="primary-button" href="#projects">查看作品 <ArrowUpRight size={18} weight="bold" aria-hidden="true" /></a><p className="location">{profile.location}<br />© {profile.name.toUpperCase()} 2026</p></div>
+    <div className="hero__visual"><DeferredAsteroidScene /></div>
+  </section>;
+}
+
+function hasCompletedOpening() {
+  try {
+    return window.sessionStorage.getItem(INTRO_SESSION_KEY) === "complete";
+  } catch {
+    return false;
+  }
 }
 
 function ProjectSection({ project, onOpenProject }) {
@@ -486,12 +309,7 @@ function useReaderDialog(isOpen, onClose, closeRef) {
 }
 
 function ContentsIndex({ headings }) {
-  const scrollToHeading = (event, headingId) => {
-    event.preventDefault();
-    document.getElementById(headingId)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
-  return <aside><span>CONTENTS</span><ol>{headings.map((heading) => <li key={heading.id}><a href={`#${heading.id}`} onClick={(event) => scrollToHeading(event, heading.id)}>{heading.title}</a></li>)}</ol></aside>;
+  return <aside><span>CONTENTS</span><ol>{headings.map((heading) => <li key={heading.id}><a href={`#${heading.id}`}>{heading.title}</a></li>)}</ol></aside>;
 }
 
 function remarkHeadingIndexes() {
@@ -681,12 +499,17 @@ export function App() {
   useScrollProgress();
   const [pathname, setPathname] = useState(() => window.location.pathname);
   const [wechatOpen, setWechatOpen] = useState(false);
+  const [introRunKey, setIntroRunKey] = useState(0);
+  const [introActive, setIntroActive] = useState(() => (
+    window.location.pathname === "/"
+    && !window.location.hash
+    && !hasCompletedOpening()
+  ));
   const contentRoute = parseContentRoute(pathname);
   const activeArticle = contentRoute?.type === "article" ? articles.find((article) => article.id === contentRoute.id) || null : null;
   const activeProject = contentRoute?.type === "project" ? projects.find((project) => project.id === contentRoute.id) || null : null;
   const readerOpen = Boolean(activeArticle || activeProject);
   const isNotFound = pathname !== "/" && (!contentRoute || !readerOpen);
-  useFullPageSnap(!readerOpen && !isNotFound && !wechatOpen);
 
   const pendingReturnScrollYRef = useRef(null);
   const skipHashRestoreRef = useRef(false);
@@ -770,15 +593,35 @@ export function App() {
   const openArticle = useCallback((id) => openContent("article", id), [openContent]);
   const openProject = useCallback((id) => openContent("project", id), [openContent]);
 
+  const completeOpening = useCallback(() => {
+    try {
+      window.sessionStorage.setItem(INTRO_SESSION_KEY, "complete");
+    } catch {
+      // The animation can still finish when storage is unavailable.
+    }
+    setIntroActive(false);
+  }, []);
+
+  const replayOpening = useCallback(() => {
+    setIntroRunKey((value) => value + 1);
+    setIntroActive(true);
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, []);
+
+  useEffect(() => {
+    if (pathname !== "/") setIntroActive(false);
+  }, [pathname]);
+
   if (isNotFound) return <NotFoundPage path={pathname} onGoHome={goHome} />;
 
   return <main id="top">
-    <Header />
-    <SectionRail />
-    <section className="hero snap-panel" aria-labelledby="hero-title">
-      <div className="hero__copy"><p className="eyebrow">{profile.name.toUpperCase()} / PORTFOLIO + NOTES 2026</p><h1 id="hero-title"><span className="hero__name">{profile.name.toUpperCase()} <em>/</em></span><span className="hero__role-lockup"><span className="hero__role-en">CREATIVE DEVELOPER</span><span className="hero__role-cn">创意开发者<br />AI 应用与 Agent 系统</span></span></h1><p className="hero__statement">{profile.heroStatement[0]}<br />{profile.heroStatement[1]}</p><p className="availability"><span aria-hidden="true" />{profile.availability}</p><a className="primary-button" href="#projects">查看作品 <ArrowUpRight size={18} weight="bold" aria-hidden="true" /></a><p className="location">{profile.location}<br />© {profile.name.toUpperCase()} 2026</p></div>
-      <div className="hero__visual"><DeferredAsteroidScene /></div>
-    </section>
+    <VibeCodingOpening
+      active={introActive}
+      runKey={introRunKey}
+      onComplete={completeOpening}
+      chrome={<><Header onReplay={replayOpening} /><SectionRail /></>}
+      hero={<HeroSection />}
+    />
     <section className="projects" id="projects" aria-labelledby="works-title">
       <div className="project-panel snap-panel">
         <div className="section-heading"><p id="works-title"><span aria-hidden="true" /> 我的项目</p><a href="#contact">VIEW ALL WORKS <ArrowRight size={17} aria-hidden="true" /></a></div>
