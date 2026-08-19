@@ -279,7 +279,7 @@ export function VibeCodingOpening({
   }, []);
 
   useEffect(() => {
-    if (!isRunning) return undefined;
+    if (!isRunning || step.id === "promise") return undefined;
     const timer = window.setTimeout(() => {
       if (stepIndex >= VIBE_OPENING_STEPS.length - 1) {
         finish();
@@ -288,7 +288,7 @@ export function VibeCodingOpening({
       setStepIndex((current) => Math.min(current + 1, VIBE_OPENING_STEPS.length - 1));
     }, stepPlaybackDuration);
     return () => window.clearTimeout(timer);
-  }, [finish, isRunning, stepPlaybackDuration, stepIndex]);
+  }, [finish, isRunning, step.id, stepPlaybackDuration, stepIndex]);
 
   useEffect(() => {
     clearTimerGroup(timelineTimersRef);
@@ -425,11 +425,20 @@ export function VibeCodingOpening({
     advanceFromCommand(step.command);
   }, [advanceFromCommand, commandInput, step.command]);
 
+  const beginRecovery = useCallback(() => {
+    if (step.id !== "promise") return;
+    window.clearTimeout(commandTimerRef.current);
+    clearTimerGroup(timelineTimersRef);
+    commandUserOwnedRef.current = false;
+    setCommandState("");
+    setStepIndex(STEP_INDEX.revert);
+  }, [step.id]);
+
   const progress = isRunning ? (stepIndex + 1) / VIBE_OPENING_STEPS.length : 1;
   const displayPhase = isRunning ? step.phase : "complete";
   const displayPreview = isRunning ? step.preview : "ready";
-  const thesisVisible = step.phase === "thesis" || step.phase === "repair";
-  const thesisMode = step.id === "thesis" ? "thesis" : step.id === "promise" ? "promise" : "repair";
+  const thesisVisible = step.id === "thesis" || step.id === "promise";
+  const thesisMode = step.id === "thesis" ? "thesis" : "promise";
   const historyLines = INDEXED_TRANSCRIPT.filter((line) => STEP_INDEX[line.at] < stepIndex);
   const visibleLeading = stepGroups.leading.slice(0, timeline.leadingCount);
   const visibleTrailing = stepGroups.trailing.slice(0, timeline.trailingCount);
@@ -544,12 +553,19 @@ export function VibeCodingOpening({
           {thesisMode === "thesis" ? <>
             <p>你是否厌倦了</p>
             <strong>无止境的无效交流？</strong>
-          </> : thesisMode === "promise" ? <>
+          </> : <>
             <p>约束、检查点、验证</p>
             <strong>我可以帮你解决这一切。</strong>
-          </> : <>
-            <p>先恢复，再建立干净上下文</p>
-            <strong>错误链不必成为历史。</strong>
+            <button
+              className="vibe-intro__thesis-action"
+              type="button"
+              onClick={beginRecovery}
+              aria-label="执行 revert 和 /new，继续演示"
+            >
+              <span className="vibe-intro__thesis-prompt" aria-hidden="true">D:\portfolio&gt;</span>
+              <code>revert &amp;&amp; /new</code>
+              <span className="vibe-intro__thesis-enter" aria-hidden="true">ENTER ↵</span>
+            </button>
           </>}
         </div>
       </div>

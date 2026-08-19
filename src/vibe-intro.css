@@ -1903,6 +1903,135 @@
   }
 }
 
+/* Full-screen decision gate between the failed pass and the repaired workflow. */
+.vibe-intro .vibe-intro__thesis {
+  z-index: 13;
+  inset: 0;
+  padding: clamp(28px, 7vw, 112px);
+  place-items: center;
+  overflow: hidden;
+  border: 0;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(200, 255, 35, 0.035), transparent 34%),
+    #050505;
+  text-align: left;
+}
+
+.vibe-intro .vibe-intro__thesis[data-visible="true"] {
+  pointer-events: auto;
+}
+
+.opening-stage[data-step="thesis"] .vibe-intro__skip,
+.opening-stage[data-step="promise"] .vibe-intro__skip {
+  top: 10px;
+  right: 10px;
+}
+
+.vibe-intro__thesis-copy {
+  inline-size: min(100%, 1080px);
+}
+
+.vibe-intro__thesis strong {
+  max-inline-size: 1040px;
+  font-size: clamp(52px, 7vw, 112px);
+}
+
+.vibe-intro .vibe-intro__thesis p {
+  font-size: clamp(20px, 1.7vw, 28px);
+  font-weight: 650;
+  line-height: 1.35;
+  letter-spacing: 0.035em;
+}
+
+.opening-stage[data-step="promise"] .vibe-intro__thesis p {
+  color: #a8b0b7;
+}
+
+.vibe-intro__thesis-action {
+  inline-size: fit-content;
+  min-block-size: 52px;
+  margin: clamp(32px, 4vw, 52px) auto 0;
+  padding: 0 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--vibe-acid);
+  border: 1px solid rgba(200, 255, 35, 0.48);
+  background: #050505;
+  font: 600 14px/1 var(--vibe-cmd-font);
+  cursor: pointer;
+  pointer-events: auto;
+  animation: vibe-thesis-copy-in 300ms 260ms cubic-bezier(0.2, 0.72, 0.2, 1) both;
+  transition: color 140ms ease, border-color 140ms ease, background-color 140ms ease;
+}
+
+.vibe-intro__thesis-prompt {
+  color: #777;
+  font-weight: 400;
+}
+
+.vibe-intro__thesis-action code {
+  color: inherit;
+  font: inherit;
+}
+
+.vibe-intro__thesis-enter {
+  margin-left: 14px;
+  color: #8f989f;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.vibe-intro__thesis-action:hover,
+.vibe-intro__thesis-action:focus-visible {
+  color: #e2ff84;
+  border-color: var(--vibe-acid);
+  background: rgba(200, 255, 35, 0.055);
+}
+
+.vibe-intro__thesis-action:focus-visible {
+  outline: 2px solid rgba(200, 255, 35, 0.82);
+  outline-offset: 4px;
+}
+
+@media (max-width: 760px) {
+  .vibe-intro .vibe-intro__thesis {
+    inset: 0;
+    padding: 24px 18px;
+  }
+
+  .vibe-intro__thesis strong {
+    font-size: clamp(42px, 12vw, 68px);
+  }
+
+  .vibe-intro__thesis-action {
+    inline-size: min(100%, 23rem);
+    min-block-size: 50px;
+    justify-content: center;
+    gap: 12px;
+    font-size: 13px;
+  }
+
+  .vibe-intro__thesis-prompt {
+    display: none;
+  }
+
+  .vibe-intro__thesis-enter {
+    margin-left: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vibe-intro__thesis-action {
+    opacity: 1;
+    filter: none;
+    transform: none;
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 @media (max-height: 640px) and (max-width: 760px) {
   .vibe-intro__conversation { block-size: 48svh; }
   .opening-stage[data-intro-active="true"] .opening-stage__hero-viewport { inset: 48svh 0 0; }
