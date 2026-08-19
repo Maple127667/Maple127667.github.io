@@ -2530,6 +2530,14 @@
   color: #a8b0b7;
 }
 
+.opening-stage[data-step="promise"] .vibe-intro__thesis strong {
+  color: #f3f5f6;
+}
+
+.vibe-intro__thesis-accent {
+  color: var(--vibe-acid);
+}
+
 .vibe-intro__thesis-action {
   inline-size: fit-content;
   min-block-size: 52px;

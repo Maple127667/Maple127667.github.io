@@ -487,6 +487,7 @@ function projectStepTimeline(step, groups, elapsed, reducedMotion) {
 
 export function VibeCodingOpening({
   active = true,
+  paused = false,
   runKey = 0,
   onComplete,
   chrome,
@@ -637,13 +638,13 @@ export function VibeCodingOpening({
   }, []);
 
   useEffect(() => {
-    if (!isRunning) return undefined;
+    if (!isRunning || paused) return undefined;
     let previousTime = window.performance.now();
 
     const tick = (currentTime) => {
       const elapsed = Math.max(0, Math.min(64, currentTime - previousTime));
       previousTime = currentTime;
-      if (!playbackPausedRef.current && !scrollSeekingRef.current) {
+      if (!paused && !playbackPausedRef.current && !scrollSeekingRef.current) {
         updatePlayhead(playheadRef.current + elapsed);
       }
       if (!completionRef.current) playbackFrameRef.current = window.requestAnimationFrame(tick);
@@ -651,10 +652,10 @@ export function VibeCodingOpening({
 
     playbackFrameRef.current = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(playbackFrameRef.current);
-  }, [isRunning, runKey, updatePlayhead]);
+  }, [isRunning, paused, runKey, updatePlayhead]);
 
   useEffect(() => {
-    if (!isRunning) return undefined;
+    if (!isRunning || paused) return undefined;
     let scrollFrame = null;
     let seekEndTimer = null;
     let ignoreWheelScrollUntil = 0;
@@ -735,7 +736,7 @@ export function VibeCodingOpening({
       window.removeEventListener("scroll", scheduleScrollRead);
       window.removeEventListener("resize", resetScrollOrigin);
     };
-  }, [isRunning, playbackPlan.total, updatePlayhead]);
+  }, [isRunning, paused, playbackPlan.total, updatePlayhead]);
 
   useEffect(() => {
     const buffer = cmdBufferRef.current;
@@ -963,8 +964,8 @@ export function VibeCodingOpening({
             <p>你是否厌倦了</p>
             <strong>无止境的无效交流？</strong>
           </> : <>
-            <p>约束、检查点、验证</p>
-            <strong>我可以帮你解决这一切。</strong>
+            <p>约束、检查点、验证 无需考虑</p>
+            <strong>我帮你<br />把<span className="vibe-intro__thesis-accent">想法</span>变成<span className="vibe-intro__thesis-accent">项目</span></strong>
             <button
               className="vibe-intro__thesis-action"
               type="button"

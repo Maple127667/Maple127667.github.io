@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Component, lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { visit } from "unist-util-visit";
@@ -20,10 +20,18 @@ import {
 import { profile, technologyGroups } from "./content/profile.js";
 import { projects } from "./content/projects/index.js";
 import { VibeCodingOpening } from "./VibeCodingIntro.jsx";
+import { VibeBootLoader } from "./VibeBootLoader.jsx";
 import StarField from "./StarField.jsx";
 
-const LazyAsteroidScene = lazy(() => import("./AsteroidScene.jsx"));
+let asteroidSceneModulePromise;
+const loadAsteroidSceneModule = () => {
+  asteroidSceneModulePromise ??= import("./AsteroidScene.jsx");
+  return asteroidSceneModulePromise;
+};
+const LazyAsteroidScene = lazy(loadAsteroidSceneModule);
 const INTRO_SESSION_KEY = "maple-vibe-opening-v1";
+const HARD_RELOAD_INTENT_KEY = "maple-vibe-hard-reload-intent";
+const HARD_RELOAD_INTENT_TTL_MS = 15000;
 
 const sectionRailItems = [
   { id: "top", number: "01", label: "首页" },
@@ -73,25 +81,35 @@ function useScrollProgress() {
   }, []);
 }
 
-function AsteroidSceneFallback() {
-  return <div className="asteroid-stage asteroid-loading" aria-hidden="true"><span className="scene-label scene-label--top">GRAVITY FIELD / INITIALIZING</span><span className="scene-label scene-label--bottom">THREE-BODY / STANDBY</span></div>;
+function AsteroidSceneFallback({ compatibility = false }) {
+  return <div className="asteroid-stage asteroid-loading" aria-hidden="true"><span className="scene-label scene-label--top">{compatibility ? "GRAVITY FIELD / COMPATIBILITY MODE" : "GRAVITY FIELD / INITIALIZING"}</span><span className="scene-label scene-label--bottom">{compatibility ? "STATIC SPACE FIELD / READY" : "THREE-BODY / STANDBY"}</span></div>;
 }
 
-function DeferredAsteroidScene() {
-  const [ready, setReady] = useState(false);
+class AsteroidSceneBoundary extends Component {
+  state = { failed: false };
 
-  useEffect(() => {
-    if ("requestIdleCallback" in window) {
-      const idleId = window.requestIdleCallback(() => setReady(true), { timeout: 1000 });
-      return () => window.cancelIdleCallback(idleId);
-    }
-    const timer = window.setTimeout(() => setReady(true), 220);
-    return () => window.clearTimeout(timer);
-  }, []);
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
 
-  if (!ready) return <AsteroidSceneFallback />;
+  componentDidCatch(error) {
+    this.props.onProgress?.({ progress: 1, status: "SCENE READY / COMPATIBILITY MODE" });
+    this.props.onReady?.({ mode: "fallback", error });
+  }
 
-  return <Suspense fallback={<AsteroidSceneFallback />}><LazyAsteroidScene /></Suspense>;
+  render() {
+    if (this.state.failed) return <AsteroidSceneFallback compatibility />;
+    return this.props.children;
+  }
+}
+
+function DeferredAsteroidScene({ forceFallback, onProgress, onReady }) {
+  if (forceFallback) return <AsteroidSceneFallback compatibility />;
+  return <AsteroidSceneBoundary onProgress={onProgress} onReady={onReady}>
+    <Suspense fallback={<AsteroidSceneFallback />}>
+      <LazyAsteroidScene onProgress={onProgress} onReady={onReady} />
+    </Suspense>
+  </AsteroidSceneBoundary>;
 }
 
 function SectionRail() {
@@ -138,11 +156,11 @@ function Header({ onReplay }) {
   </header>;
 }
 
-function HeroSection() {
+function HeroSection({ forceSceneFallback, onSceneProgress, onSceneReady }) {
   return <section className="hero snap-panel" aria-labelledby="hero-title">
     <StarField />
     <div className="hero__copy"><p className="eyebrow">{profile.name.toUpperCase()} / PORTFOLIO + NOTES 2026</p><h1 id="hero-title"><span className="hero__name">{profile.name.toUpperCase()} <em>/</em></span><span className="hero__role-lockup"><span className="hero__role-en">CREATIVE DEVELOPER</span><span className="hero__role-cn">创意开发者<br />AI 应用与 Agent 系统</span></span></h1><p className="hero__statement">{profile.heroStatement[0]}<br />{profile.heroStatement[1]}</p><p className="availability"><span aria-hidden="true" />{profile.availability}</p><a className="primary-button" href="#projects">查看作品 <ArrowUpRight size={18} weight="bold" aria-hidden="true" /></a><p className="location">{profile.location}<br />© {profile.name.toUpperCase()} 2026</p></div>
-    <div className="hero__visual"><DeferredAsteroidScene /></div>
+    <div className="hero__visual"><DeferredAsteroidScene forceFallback={forceSceneFallback} onProgress={onSceneProgress} onReady={onSceneReady} /></div>
   </section>;
 }
 
@@ -154,9 +172,32 @@ function hasCompletedOpening() {
   }
 }
 
+function getDocumentNavigationType() {
+  try {
+    const navigationEntry = window.performance?.getEntriesByType?.("navigation")?.[0];
+    if (navigationEntry) return navigationEntry.type;
+    if (window.performance?.navigation?.type === 1) return "reload";
+    if (window.performance?.navigation?.type === 2) return "back_forward";
+    return "navigate";
+  } catch {
+    return "navigate";
+  }
+}
+
+function hasFreshHardReloadIntent() {
+  try {
+    const requestedAt = Number(window.sessionStorage.getItem(HARD_RELOAD_INTENT_KEY));
+    return Number.isFinite(requestedAt)
+      && requestedAt > 0
+      && Date.now() - requestedAt <= HARD_RELOAD_INTENT_TTL_MS;
+  } catch {
+    return false;
+  }
+}
+
 function ProjectSection({ project, onOpenProject }) {
   return <article className={`project project--${project.align} project--${project.id}`} aria-labelledby={`project-${project.id}`}>
-    <div className="project__image-wrap"><img src={project.cover} alt={`${project.title}项目视觉`} className="project__image" loading={project.index === "01" ? "eager" : "lazy"} /></div>
+    <div className="project__image-wrap"><img src={project.cover} alt={`${project.title}项目视觉`} className="project__image" loading="lazy" fetchPriority="low" /></div>
     <div className="project__copy">
       <span className="project__number">{project.index}</span>
       <p className="project__kicker">{project.category}</p>
@@ -501,11 +542,21 @@ export function App() {
   useScrollProgress();
   const [pathname, setPathname] = useState(() => window.location.pathname);
   const [wechatOpen, setWechatOpen] = useState(false);
+  const [hardReloadIntent] = useState(hasFreshHardReloadIntent);
+  const [booting, setBooting] = useState(true);
+  const [sceneLoad, setSceneLoad] = useState({
+    status: "LOADING SPACE RUNTIME",
+    ready: false,
+    forceFallback: false,
+  });
   const [introRunKey, setIntroRunKey] = useState(0);
   const [introActive, setIntroActive] = useState(() => (
     window.location.pathname === "/"
     && !window.location.hash
-    && !hasCompletedOpening()
+    && (
+      hardReloadIntent
+      || (getDocumentNavigationType() === "navigate" && !hasCompletedOpening())
+    )
   ));
   const contentRoute = parseContentRoute(pathname);
   const activeArticle = contentRoute?.type === "article" ? articles.find((article) => article.id === contentRoute.id) || null : null;
@@ -515,6 +566,29 @@ export function App() {
 
   const pendingReturnScrollYRef = useRef(null);
   const skipHashRestoreRef = useRef(false);
+
+  useEffect(() => {
+    try {
+      window.sessionStorage.removeItem(HARD_RELOAD_INTENT_KEY);
+    } catch {
+      // Keyboard hard reload detection is optional when storage is unavailable.
+    }
+
+    const rememberHardReload = (event) => {
+      const modifier = event.ctrlKey || event.metaKey;
+      const isHardF5 = modifier && event.key === "F5";
+      const isHardReloadShortcut = modifier && event.shiftKey && event.key.toLowerCase() === "r";
+      if (!isHardF5 && !isHardReloadShortcut) return;
+      try {
+        window.sessionStorage.setItem(HARD_RELOAD_INTENT_KEY, String(Date.now()));
+      } catch {
+        // The page still reloads normally when storage is unavailable.
+      }
+    };
+
+    window.addEventListener("keydown", rememberHardReload, true);
+    return () => window.removeEventListener("keydown", rememberHardReload, true);
+  }, []);
 
   const scrollToCurrentHash = useCallback(() => {
     if (!window.location.hash) return;
@@ -555,13 +629,14 @@ export function App() {
   }, [pathname, restoreReaderReturnPosition, scrollToCurrentHash]);
 
   useEffect(() => {
+    if (booting) return;
     if (pathname !== "/") return;
     if (skipHashRestoreRef.current) {
       skipHashRestoreRef.current = false;
       return;
     }
     scrollToCurrentHash();
-  }, [pathname, scrollToCurrentHash]);
+  }, [booting, pathname, scrollToCurrentHash]);
 
   const openContent = useCallback((type, id) => {
     const nextPath = contentRoutePath(type, id);
@@ -604,6 +679,37 @@ export function App() {
     setIntroActive(false);
   }, []);
 
+  const completeBoot = useCallback(() => {
+    if (introActive && pathname === "/" && !window.location.hash) {
+      window.scrollTo({ top: 0, behavior: "auto" });
+    }
+    setBooting(false);
+  }, [introActive, pathname]);
+
+  const updateSceneLoad = useCallback(({ status = "WARMING SPACE SCENE" } = {}) => {
+    setSceneLoad((current) => {
+      if (current.forceFallback) return current;
+      if (status === current.status) return current;
+      return { ...current, status };
+    });
+  }, []);
+
+  const completeSceneLoad = useCallback(({ mode = "bennu" } = {}) => {
+    setSceneLoad((current) => current.forceFallback ? current : {
+      ...current,
+      status: mode === "bennu" ? "SPACE SCENE READY" : "SCENE READY / COMPATIBILITY MODE",
+      ready: true,
+    });
+  }, []);
+
+  const forceSceneFallback = useCallback(() => {
+    setSceneLoad({
+      status: "SCENE READY / COMPATIBILITY MODE",
+      ready: true,
+      forceFallback: true,
+    });
+  }, []);
+
   const replayOpening = useCallback(() => {
     setIntroRunKey((value) => value + 1);
     setIntroActive(true);
@@ -614,15 +720,25 @@ export function App() {
     if (pathname !== "/") setIntroActive(false);
   }, [pathname]);
 
-  if (isNotFound) return <NotFoundPage path={pathname} onGoHome={goHome} />;
+  const bootReady = pathname !== "/" || sceneLoad.ready;
 
-  return <main id="top">
+  return <>
+    {booting && <VibeBootLoader
+      ready={bootReady}
+      status={pathname === "/" ? sceneLoad.status : "INTERFACE READY"}
+      onComplete={completeBoot}
+      onTimeout={pathname === "/" ? forceSceneFallback : undefined}
+    />}
+    {isNotFound ? <div aria-hidden={booting ? "true" : undefined} inert={booting ? true : undefined}>
+      <NotFoundPage path={pathname} onGoHome={goHome} />
+    </div> : <main id="top" aria-hidden={booting ? "true" : undefined} inert={booting ? true : undefined}>
     <VibeCodingOpening
       active={introActive}
+      paused={booting}
       runKey={introRunKey}
       onComplete={completeOpening}
       chrome={<><Header onReplay={replayOpening} /><SectionRail /></>}
-      hero={<HeroSection />}
+      hero={<HeroSection forceSceneFallback={sceneLoad.forceFallback} onSceneProgress={updateSceneLoad} onSceneReady={completeSceneLoad} />}
     />
     <section className="projects" id="projects" aria-labelledby="works-title">
       <div className="project-panel snap-panel">
@@ -648,7 +764,8 @@ export function App() {
       <a className="contact__arrow" href="#top" aria-label="返回顶部"><ArrowUpRight size={32} aria-hidden="true" /></a>
     </section>
     <WechatDialog open={wechatOpen} onClose={() => setWechatOpen(false)} />
-    <ArticleReader article={activeArticle} onClose={closeContent} />
-    <ProjectReader project={activeProject} onClose={closeContent} />
-  </main>;
+    <ArticleReader article={booting ? null : activeArticle} onClose={closeContent} />
+    <ProjectReader project={booting ? null : activeProject} onClose={closeContent} />
+  </main>}
+  </>;
 }

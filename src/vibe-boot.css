@@ -1,0 +1,177 @@
+.vibe-boot {
+  --boot-progress: 0;
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  min-block-size: 100svh;
+  padding: clamp(20px, 5vw, 72px);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: #e8edf0;
+  background:
+    radial-gradient(circle at 74% 18%, rgba(62, 83, 104, 0.12), transparent 34%),
+    #020407;
+  opacity: 1;
+  transition: opacity 190ms ease;
+}
+
+.vibe-boot::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.18;
+  background-image:
+    linear-gradient(rgba(138, 168, 191, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(138, 168, 191, 0.035) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: linear-gradient(90deg, #000, transparent 78%);
+}
+
+.vibe-boot[data-phase="ready"] {
+  opacity: 0;
+}
+
+.vibe-boot__strip {
+  position: relative;
+  z-index: 1;
+  inline-size: min(760px, 100%);
+  padding-block: 20px 18px;
+  border-block: 1px solid rgba(163, 180, 196, 0.18);
+}
+
+.vibe-boot__header,
+.vibe-boot__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  font: 600 13px/1.4 var(--ui);
+  letter-spacing: 0.08em;
+}
+
+.vibe-boot__header p,
+.vibe-boot__command,
+.vibe-boot__meta {
+  margin: 0;
+}
+
+.vibe-boot__header p {
+  color: #edf1f3;
+}
+
+.vibe-boot__header i {
+  color: var(--acid);
+  font-style: normal;
+}
+
+.vibe-boot__header > span {
+  color: #74808b;
+  font-family: var(--code);
+  font-weight: 500;
+}
+
+.vibe-boot__command {
+  margin-top: clamp(32px, 5vw, 52px);
+  color: #e1e6e9;
+  font: 500 clamp(15px, 1.4vw, 18px) / 1.5 var(--code);
+  letter-spacing: 0;
+}
+
+.vibe-boot__command span {
+  color: #707a84;
+}
+
+.vibe-boot__track {
+  position: relative;
+  block-size: 4px;
+  margin-top: 18px;
+  overflow: hidden;
+  background: #11171d;
+}
+
+.vibe-boot__track::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0,
+    transparent calc(8.333% - 1px),
+    #020407 calc(8.333% - 1px),
+    #020407 8.333%
+  );
+}
+
+.vibe-boot__track > span {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  background: var(--acid);
+  box-shadow: 0 0 14px rgba(200, 255, 35, 0.34);
+  transform: scaleX(var(--boot-progress));
+  transform-origin: left center;
+  will-change: transform;
+}
+
+.vibe-boot__meta {
+  margin-top: 13px;
+  color: #87939f;
+  font-family: var(--code);
+  font-weight: 500;
+  letter-spacing: 0.025em;
+}
+
+.vibe-boot__meta output {
+  min-inline-size: 4ch;
+  color: var(--acid);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.vibe-boot__live {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 600px) {
+  .vibe-boot {
+    padding: 20px;
+  }
+
+  .vibe-boot__strip {
+    padding-block: 17px 16px;
+  }
+
+  .vibe-boot__header,
+  .vibe-boot__meta {
+    gap: 14px;
+    font-size: 13px;
+  }
+
+  .vibe-boot__command {
+    margin-top: 34px;
+    overflow-wrap: anywhere;
+    font-size: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vibe-boot {
+    transition-duration: 30ms;
+  }
+
+  .vibe-boot__track > span {
+    will-change: auto;
+  }
+}

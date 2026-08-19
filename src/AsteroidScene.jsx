@@ -3,7 +3,99 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
 import { createSeededRandom, normalizeSimulationSeed, seedToUint32 } from "./seededRandom.js";
-export default function AsteroidScene() {
+
+const BENNU_MODEL_URL = `${import.meta.env.BASE_URL}assets/models/bennu.glb`;
+const BENNU_MODEL_BYTES = 859980;
+const BENNU_LOAD_TIMEOUT_MS = 6000;
+const bennuProgressListeners = new Set();
+let bennuAssetPromise;
+
+function disposeImportedScene(root, disposeTextures = false, preservedTexture = null) {
+  root.traverse((node) => {
+    if (!node.isMesh) return;
+    node.geometry?.dispose();
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    materials.forEach((material) => {
+      if (!material) return;
+      if (disposeTextures) {
+        Object.values(material).forEach((value) => {
+          if (value?.isTexture && value !== preservedTexture) value.dispose();
+        });
+      }
+      material.dispose();
+    });
+  });
+}
+
+function normalizeBennuAsset(gltf) {
+  gltf.scene.updateMatrixWorld(true);
+  const sourceMesh = gltf.scene.getObjectByProperty("isMesh", true);
+  if (!sourceMesh) throw new Error("Bennu model does not contain a mesh");
+
+  const geometry = sourceMesh.geometry.clone();
+  geometry.applyMatrix4(sourceMesh.matrixWorld);
+  geometry.center();
+  geometry.computeVertexNormals();
+  geometry.computeBoundingSphere();
+  const sourceRadius = geometry.boundingSphere?.radius || 1;
+  geometry.scale(1 / sourceRadius, 1 / sourceRadius, 1 / sourceRadius);
+  geometry.computeBoundingSphere();
+
+  const sourceMaterials = Array.isArray(sourceMesh.material) ? sourceMesh.material : [sourceMesh.material];
+  const texture = sourceMaterials.find((material) => material?.map)?.map || null;
+  if (texture) {
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.needsUpdate = true;
+  }
+  disposeImportedScene(gltf.scene, true, texture);
+  return { mode: "bennu", geometry, texture };
+}
+
+export function preloadAsteroidAssets(onProgress) {
+  if (onProgress) bennuProgressListeners.add(onProgress);
+
+  if (!bennuAssetPromise) {
+    bennuAssetPromise = new Promise((resolve) => {
+      const loader = new GLTFLoader();
+      let settled = false;
+      const settle = (asset) => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timeout);
+        resolve(asset);
+      };
+      const timeout = window.setTimeout(() => {
+        settle({ mode: "fallback", reason: "timeout" });
+      }, BENNU_LOAD_TIMEOUT_MS);
+
+      loader.load(
+        BENNU_MODEL_URL,
+        (gltf) => {
+          if (settled) {
+            disposeImportedScene(gltf.scene, true);
+            return;
+          }
+          try {
+            settle(normalizeBennuAsset(gltf));
+          } catch (error) {
+            disposeImportedScene(gltf.scene, true);
+            settle({ mode: "fallback", reason: "parse", error });
+          }
+        },
+        (event) => {
+          const total = Number(event.total) || BENNU_MODEL_BYTES;
+          const ratio = Math.min(1, event.loaded / total);
+          bennuProgressListeners.forEach((listener) => listener({ loaded: event.loaded, total, ratio }));
+        },
+        (error) => settle({ mode: "fallback", reason: "network", error }),
+      );
+    }).finally(() => bennuProgressListeners.clear());
+  }
+
+  return bennuAssetPromise;
+}
+
+export default function AsteroidScene({ onProgress, onReady }) {
   const canvasRef = useRef(null);
   const seedLabelRef = useRef(null);
   const seedTriggerRef = useRef(null);
@@ -11,8 +103,15 @@ export default function AsteroidScene() {
   const cycleRef = useRef(null);
   const applySeedRef = useRef(null);
   const currentSeedRef = useRef("");
+  const onProgressRef = useRef(onProgress);
+  const onReadyRef = useRef(onReady);
   const [seedEditorOpen, setSeedEditorOpen] = useState(false);
   const [seedInput, setSeedInput] = useState("");
+
+  useEffect(() => {
+    onProgressRef.current = onProgress;
+    onReadyRef.current = onReady;
+  }, [onProgress, onReady]);
 
   const openSeedEditor = () => {
     setSeedInput(currentSeedRef.current);
@@ -44,12 +143,22 @@ export default function AsteroidScene() {
     const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
     camera.position.set(0.15, 0.04, 7.9);
 
-    const renderer = new THREE.WebGLRenderer({
-      canvas,
-      antialias: true,
-      alpha: true,
-      powerPreference: "high-performance",
-    });
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        canvas,
+        antialias: true,
+        alpha: true,
+        powerPreference: "high-performance",
+      });
+    } catch (error) {
+      canvas.dataset.asteroidModel = "webgl-fallback";
+      canvas.dataset.sceneReady = "fallback";
+      onProgressRef.current?.({ progress: 1, status: "SCENE READY / COMPATIBILITY MODE" });
+      onReadyRef.current?.({ mode: "fallback", error });
+      return undefined;
+    }
+    onProgressRef.current?.({ progress: 0.18, status: "WARMING WEBGL RENDERER" });
     renderer.setClearColor(0x000000, 0);
     renderer.setClearAlpha(0);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, isCompact ? 1.3 : 1.7));
@@ -298,55 +407,42 @@ export default function AsteroidScene() {
 
     canvas.dataset.asteroidModel = "procedural-fallback";
     let sceneDisposed = false;
-    let bennuTexture = null;
-    const disposeImportedScene = (root, disposeTextures = false) => {
-      root.traverse((node) => {
-        if (!node.isMesh) return;
-        node.geometry?.dispose();
-        const materials = Array.isArray(node.material) ? node.material : [node.material];
-        materials.forEach((material) => {
-          if (!material) return;
-          if (disposeTextures) {
-            Object.values(material).forEach((value) => {
-              if (value?.isTexture) value.dispose();
-            });
-          }
-          material.dispose();
-        });
+    let preparedMode = null;
+    let readyReported = false;
+    const renderSceneFrame = () => {
+      renderer.clear(true, true, true);
+      camera.layers.set(BACKGROUND_LAYER);
+      renderer.render(scene, camera);
+      renderer.clearDepth();
+      camera.layers.set(0);
+      renderer.render(scene, camera);
+    };
+    const reportSceneReady = () => {
+      if (!preparedMode || readyReported || sceneDisposed) return;
+      readyReported = true;
+      canvas.dataset.sceneReady = preparedMode;
+      onProgressRef.current?.({
+        progress: 1,
+        status: preparedMode === "bennu" ? "SPACE SCENE READY" : "SCENE READY / COMPATIBILITY MODE",
       });
+      onReadyRef.current?.({ mode: preparedMode });
     };
     const modelTints = [0xc5d2dc, 0xa8bac8, 0xd6dfe5];
-    const modelLoader = new GLTFLoader();
-    modelLoader.load(
-      "/assets/models/bennu.glb",
-      (gltf) => {
-        gltf.scene.updateMatrixWorld(true);
-        const sourceMesh = gltf.scene.getObjectByProperty("isMesh", true);
-        if (!sourceMesh || sceneDisposed) {
-          disposeImportedScene(gltf.scene, true);
-          return;
+    preloadAsteroidAssets(({ ratio }) => {
+      onProgressRef.current?.({
+        progress: ratio === null ? 0.22 : 0.22 + ratio * 0.58,
+        status: "LOADING BENNU MODEL",
+      });
+    }).then((asset) => {
+      if (sceneDisposed) return;
+      if (asset.mode === "bennu") {
+        if (asset.texture) {
+          asset.texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+          asset.texture.needsUpdate = true;
         }
-
-        const normalizedGeometry = sourceMesh.geometry.clone();
-        normalizedGeometry.applyMatrix4(sourceMesh.matrixWorld);
-        normalizedGeometry.center();
-        normalizedGeometry.computeVertexNormals();
-        normalizedGeometry.computeBoundingSphere();
-        const sourceRadius = normalizedGeometry.boundingSphere?.radius || 1;
-        normalizedGeometry.scale(1 / sourceRadius, 1 / sourceRadius, 1 / sourceRadius);
-        normalizedGeometry.computeBoundingSphere();
-
-        const sourceMaterials = Array.isArray(sourceMesh.material) ? sourceMesh.material : [sourceMesh.material];
-        bennuTexture = sourceMaterials.find((material) => material?.map)?.map || null;
-        if (bennuTexture) {
-          bennuTexture.colorSpace = THREE.SRGBColorSpace;
-          bennuTexture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
-          bennuTexture.needsUpdate = true;
-        }
-
         bodies.forEach((body, index) => {
           const previousGeometry = body.geometry;
-          const replacementGeometry = normalizedGeometry.clone();
+          const replacementGeometry = asset.geometry.clone();
           body.geometry = replacementGeometry;
           body.mesh.geometry = replacementGeometry;
           body.mesh.scale.setScalar(initialState[index].radius);
@@ -356,22 +452,28 @@ export default function AsteroidScene() {
           body.material.roughness = 0.9;
           body.material.metalness = 0.02;
           body.material.flatShading = false;
-          if (bennuTexture) body.material.map = bennuTexture;
+          if (asset.texture) body.material.map = asset.texture;
           body.material.bumpMap = rockTexture;
           body.material.bumpScale = 0.075;
           body.material.needsUpdate = true;
           previousGeometry.dispose();
         });
-
-        normalizedGeometry.dispose();
-        disposeImportedScene(gltf.scene);
         canvas.dataset.asteroidModel = "nasa-bennu";
-      },
-      undefined,
-      () => {
+      } else {
         canvas.dataset.asteroidModel = "procedural-fallback";
-      },
-    );
+      }
+      preparedMode = asset.mode;
+      onProgressRef.current?.({ progress: 0.92, status: "COMPILING SPACE SCENE" });
+      try {
+        resize();
+        renderSceneFrame();
+      } catch (error) {
+        preparedMode = "fallback";
+        canvas.dataset.asteroidModel = "webgl-fallback";
+        canvas.dataset.sceneError = error instanceof Error ? error.name : "render-error";
+      }
+      reportSceneReady();
+    });
     const createFieldGeometry = (count, baseRadius, seed) => {
       const positions = [];
       for (let index = 0; index < count; index += 1) {
@@ -862,12 +964,8 @@ export default function AsteroidScene() {
       camera.position.y = Math.cos(runningTime * 0.085) * 0.18 + pointer.y * -0.3;
       camera.position.z = cameraDistance + Math.sin(runningTime * 0.07) * 0.12;
       camera.lookAt(0, 0, 0);
-      renderer.clear(true, true, true);
-      camera.layers.set(BACKGROUND_LAYER);
-      renderer.render(scene, camera);
-      renderer.clearDepth();
-      camera.layers.set(0);
-      renderer.render(scene, camera);
+      renderSceneFrame();
+      reportSceneReady();
     };
     frame = window.requestAnimationFrame(animate);
 
@@ -897,7 +995,6 @@ export default function AsteroidScene() {
       shardMaterial.dispose();
       starsGeometry.dispose();
       starsMaterial.dispose();
-      bennuTexture?.dispose();
       rockTexture.dispose();
       renderer.dispose();
     };
