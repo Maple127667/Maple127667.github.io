@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./vibe-intro.css";
 
-const BAD_PREVIEWS = new Set(["draft", "gap", "scope", "panel", "flat", "wrap"]);
-
 const VIBE_OPENING_STEPS = [
   { id: "boot", duration: 1000, reducedDuration: 90, phase: "boot", preview: "idle", status: "SESSION / INITIALIZING", terminal: "$ vibe --new-session" },
   { id: "brief", duration: 2100, reducedDuration: 140, phase: "bad", preview: "idle", status: "PROMPT / RECEIVED", terminal: "prompt accepted / context 01" },
@@ -37,42 +35,43 @@ const CMD_TRANSCRIPT = [
   { at: "boot", kind: "dim", text: "(c) Microsoft Corporation. All rights reserved." },
   { at: "boot", kind: "blank", text: "" },
   { at: "brief", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"我想写一个个人作品集\"" },
-  { at: "brief", kind: "dim", text: "[read]  src/App.jsx, src/styles.css" },
-  { at: "draft", kind: "stdout", text: "[write] generated portfolio shell" },
-  { at: "draft", kind: "success", text: "[done]  homepage rendered in 1.6s" },
+  { at: "brief", kind: "dim", text: "[ack]   需求清楚；先直接生成完整首页，细节后补" },
+  { at: "draft", kind: "stdout", text: "[plan]  hero / projects / nav / responsive / polish" },
+  { at: "draft", kind: "success", text: "[done]  complete homepage / 12 files changed / 1.6s" },
   { at: "gap", kind: "blank", text: "" },
-  { at: "gap", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"为什么背景没有填满？\"" },
-  { at: "gap", kind: "dim", text: "[read]  hero background bounds" },
+  { at: "gap", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"背景怎么没铺满？\"" },
+  { at: "gap", kind: "dim", text: "[ack]   小问题；铺满背景，顺手统一首屏尺寸" },
   { at: "scope", kind: "stdout", text: "[write] background-size: cover; width: 100vw" },
   { at: "scope", kind: "warn", text: "WARN  scope expanded from background to hero layout" },
-  { at: "scope", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"背景填满，但字的位置不要变\"" },
-  { at: "panel", kind: "stdout", text: "[write] restored copy position; added readability panel" },
+  { at: "scope", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"只改背景，字别动。\"" },
+  { at: "panel", kind: "stdout", text: "[ack]   明白，马上放回去；顺手补一层可读性底板" },
   { at: "panel", kind: "warn", text: "WARN  unrequested surface introduced behind copy" },
-  { at: "panel", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"为什么字会有背景？\"" },
-  { at: "flat", kind: "stdout", text: "[write] removed panel; normalized typography" },
+  { at: "panel", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"为什么又给字加了背景？\"" },
+  { at: "flat", kind: "stdout", text: "[ack]   已删；顺手统一字号与间距" },
   { at: "flat", kind: "error", text: "ERROR visual hierarchy collapsed: 5 selectors now share one size" },
-  { at: "flat", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"字能不能排版好一点\"" },
-  { at: "wrap", kind: "stdout", text: "[write] recomposed headline and navigation" },
+  { at: "flat", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"排版也乱了。能不能只改我说的？\"" },
+  { at: "wrap", kind: "stdout", text: "[ack]   好，一次收尾：重排标题和导航" },
   { at: "wrap", kind: "error", text: "ERROR heading wrapped; project entry removed as collateral edit" },
+  { at: "wrap", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"项目入口呢？你到底改了什么？\"" },
   { at: "thesis", kind: "blank", text: "" },
-  { at: "thesis", kind: "warn", text: "WARN  6 edits / 5 regressions / 0 checkpoints" },
-  { at: "promise", kind: "dim", text: "hint: constrain -> checkpoint -> verify -> continue" },
+  { at: "thesis", kind: "warn", text: "WARN  6 次催改 / 5 次回归 / 0 个检查点" },
+  { at: "promise", kind: "dim", text: "[hint]  别急着发下一句：先约束，再检查，再继续" },
   { at: "revert", kind: "prompt", prefix: CMD_PREFIX, text: "revert" },
   { at: "revert", kind: "dim", text: "[alias] git revert --no-edit 7f31c42" },
   { at: "revert", kind: "stdout", text: "[codex/main-rework 1c8bd31] Revert \"feat: flatten hero typography\"" },
   { at: "revert", kind: "stdout", text: " 3 files changed, 42 insertions(+), 96 deletions(-)" },
   { at: "new-chat", kind: "prompt", prefix: CMD_PREFIX, text: "/new" },
   { at: "new-chat", kind: "success", text: "[done]  context 01 closed; clean context 02 ready" },
-  { at: "good-dark", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"暗色个人主页；先只建立背景与色彩变量\"" },
-  { at: "good-dark", kind: "success", text: "[done]  checkpoint 01 / palette isolated" },
-  { at: "good-space", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"加入深空星点；不要改布局\"" },
-  { at: "good-space", kind: "success", text: "[done]  checkpoint 02 / background decoupled" },
-  { at: "good-copy", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"左侧加入介绍；锁定位置和换行\"" },
-  { at: "good-copy", kind: "success", text: "[done]  checkpoint 03 / copy geometry verified" },
-  { at: "good-acid", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"酸绿只用于斜杠、状态、关键交互\"" },
-  { at: "good-acid", kind: "success", text: "[done]  checkpoint 04 / accent budget passed" },
-  { at: "good-three", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"右侧加入 Three.js 三体；真实物理、随机种子、可降级\"" },
-  { at: "good-three", kind: "success", text: "[done]  checkpoint 05 / module + fallback verified" },
+  { at: "good-dark", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"目标：暗色个人主页。此步仅建立背景与色彩变量；不改内容和布局。\"" },
+  { at: "good-dark", kind: "success", text: "PASS  01 palette only / no collateral diff" },
+  { at: "good-space", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"加入深空星点与轻微鼠标视差；保持现有 DOM 和布局不变。\"" },
+  { at: "good-space", kind: "success", text: "PASS  02 background isolated / layout unchanged" },
+  { at: "good-copy", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"左侧加入个人介绍；锁定锚点、宽度与换行，完成后验证。\"" },
+  { at: "good-copy", kind: "success", text: "PASS  03 copy geometry / wrapping verified" },
+  { at: "good-acid", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"酸绿仅用于品牌斜杠、状态和关键交互；其他颜色不变。\"" },
+  { at: "good-acid", kind: "success", text: "PASS  04 accent scope / palette preserved" },
+  { at: "good-three", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"右侧加入 Three.js 三体；真实物理、随机种子、降级方案。不触碰左侧。\"" },
+  { at: "good-three", kind: "success", text: "PASS  05 physics / fallback / left layout unchanged" },
   { at: "rebase", kind: "blank", text: "" },
   { at: "rebase", kind: "prompt", prefix: CMD_PREFIX, text: "git rebase workflow/main" },
   { at: "rebase", kind: "stdout", text: "First, rewinding head to replay your work on top of it..." },
@@ -122,11 +121,11 @@ function BadPortfolioPreview({ variant }) {
       <p className="bad-portfolio__copy">设计、开发与 AI 实验。<br />把模糊想法做成可以使用的界面。</p>
       <span className="bad-portfolio__cta">VIEW MY WORK →</span>
     </div>
-    {!hidesProject && <article className="bad-portfolio__project">
+    <article className={`bad-portfolio__project${hidesProject ? " is-removed" : ""}`}>
       <span className="bad-portfolio__project-index">01</span>
       <div className="bad-portfolio__project-copy"><small>FEATURED PROJECT</small><strong>SEARCH AGENT</strong></div>
-    </article>}
-    {hidesProject && <span className="bad-portfolio__ghost">COMPONENT REMOVED</span>}
+    </article>
+    <span className={`bad-portfolio__ghost${hidesProject ? " is-visible" : ""}`}>COMPONENT REMOVED</span>
   </div>;
 }
 
@@ -427,9 +426,10 @@ export function VibeCodingOpening({
   }, [advanceFromCommand, commandInput, step.command]);
 
   const progress = isRunning ? (stepIndex + 1) / VIBE_OPENING_STEPS.length : 1;
-  const showBadPreview = isRunning && BAD_PREVIEWS.has(step.preview);
   const displayPhase = isRunning ? step.phase : "complete";
   const displayPreview = isRunning ? step.preview : "ready";
+  const thesisVisible = step.phase === "thesis" || step.phase === "repair";
+  const thesisMode = step.id === "thesis" ? "thesis" : step.id === "promise" ? "promise" : "repair";
   const historyLines = INDEXED_TRANSCRIPT.filter((line) => STEP_INDEX[line.at] < stepIndex);
   const visibleLeading = stepGroups.leading.slice(0, timeline.leadingCount);
   const visibleTrailing = stepGroups.trailing.slice(0, timeline.trailingCount);
@@ -460,8 +460,12 @@ export function VibeCodingOpening({
     <div className="opening-stage__chrome" aria-hidden={isRunning ? "true" : undefined} inert={isRunning ? true : undefined}>{chrome}</div>
     <div className="opening-stage__hero-viewport">
       <div className="opening-stage__hero-scale" aria-hidden={isRunning ? "true" : undefined} inert={isRunning ? true : undefined}>{hero}</div>
-      {showBadPreview && <BadPortfolioPreview variant={step.preview} />}
-      {isRunning && <p className="vibe-intro__preview-label"><span aria-hidden="true" /> LIVE DOM PREVIEW / {step.preview.toUpperCase()}</p>}
+      {isRunning && <BadPortfolioPreview variant={step.preview} />}
+      {isRunning && <p className="vibe-intro__preview-label">
+        <span className="vibe-intro__preview-dot" aria-hidden="true" />
+        <span className="vibe-intro__preview-prefix">LIVE DOM PREVIEW / </span>
+        <span className="vibe-intro__preview-state" key={step.preview}>{step.preview.toUpperCase()}</span>
+      </p>}
     </div>
 
     {isRunning && <div className="vibe-intro" role="region" aria-label="Vibe Coding 开场演示">
@@ -530,18 +534,25 @@ export function VibeCodingOpening({
         </div>
       </aside>
 
-      {(step.phase === "thesis" || step.phase === "repair") && <div className="vibe-intro__thesis" aria-live="polite">
-        {step.id === "thesis" ? <>
-          <p>你是否厌倦了</p>
-          <strong>无止境的无效交流？</strong>
-        </> : step.id === "promise" ? <>
-          <p>约束、检查点、验证</p>
-          <strong>我可以帮你解决这一切。</strong>
-        </> : <>
-          <p>先恢复，再建立干净上下文</p>
-          <strong>错误链不必成为历史。</strong>
-        </>}
-      </div>}
+      <div
+        className="vibe-intro__thesis"
+        data-visible={thesisVisible ? "true" : "false"}
+        aria-hidden={thesisVisible ? undefined : "true"}
+        aria-live={thesisVisible ? "polite" : "off"}
+      >
+        <div className="vibe-intro__thesis-copy" key={thesisMode}>
+          {thesisMode === "thesis" ? <>
+            <p>你是否厌倦了</p>
+            <strong>无止境的无效交流？</strong>
+          </> : thesisMode === "promise" ? <>
+            <p>约束、检查点、验证</p>
+            <strong>我可以帮你解决这一切。</strong>
+          </> : <>
+            <p>先恢复，再建立干净上下文</p>
+            <strong>错误链不必成为历史。</strong>
+          </>}
+        </div>
+      </div>
     </div>}
   </div>;
 }
