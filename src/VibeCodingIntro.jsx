@@ -5,7 +5,7 @@ const BAD_PREVIEWS = new Set(["draft", "gap", "scope", "panel", "flat", "wrap"])
 
 const VIBE_OPENING_STEPS = [
   { id: "boot", duration: 1000, reducedDuration: 90, phase: "boot", preview: "idle", status: "SESSION / INITIALIZING", terminal: "$ vibe --new-session" },
-  { id: "brief", duration: 1700, reducedDuration: 140, phase: "bad", preview: "idle", status: "PROMPT / RECEIVED", terminal: "prompt accepted / context 01" },
+  { id: "brief", duration: 2100, reducedDuration: 140, phase: "bad", preview: "idle", status: "PROMPT / RECEIVED", terminal: "prompt accepted / context 01" },
   { id: "draft", duration: 1600, reducedDuration: 140, phase: "bad", preview: "draft", status: "GENERATING / FIRST PASS", terminal: "feat: generate portfolio shell" },
   { id: "gap", duration: 2100, reducedDuration: 150, phase: "bad", preview: "gap", status: "ISSUE / BACKGROUND GAP", terminal: "fix: make background full width" },
   { id: "scope", duration: 2200, reducedDuration: 150, phase: "bad", preview: "scope", status: "REGRESSION / SCOPE DRIFT", terminal: "warning: layout geometry changed" },
@@ -16,62 +16,80 @@ const VIBE_OPENING_STEPS = [
   { id: "promise", duration: 2600, reducedDuration: 240, phase: "thesis", preview: "wrap", status: "WORKFLOW / INTERRUPTED", terminal: "proposal: constrain -> checkpoint -> verify" },
   { id: "revert", duration: 2200, reducedDuration: 180, phase: "repair", preview: "wrap", status: "TERMINAL / AWAITING COMMAND", terminal: "$ revert", command: "revert", commandLabel: "回到错误链之前" },
   { id: "new-chat", duration: 2800, reducedDuration: 180, phase: "repair", preview: "idle", status: "CHAT / AWAITING COMMAND", terminal: "$ /new", command: "/new", commandLabel: "开启无污染上下文" },
-  { id: "good-dark", duration: 1800, reducedDuration: 150, phase: "good", preview: "good-dark", status: "CONSTRAINT 01 / PALETTE", terminal: "checkpoint 01: dark foundation" },
-  { id: "good-space", duration: 1400, reducedDuration: 140, phase: "good", preview: "good-space", status: "CONSTRAINT 02 / BACKGROUND", terminal: "checkpoint 02: pointer-responsive depth" },
-  { id: "good-copy", duration: 1400, reducedDuration: 140, phase: "good", preview: "good-copy", status: "CONSTRAINT 03 / COPY LOCK", terminal: "checkpoint 03: left copy preserved" },
-  { id: "good-acid", duration: 1500, reducedDuration: 140, phase: "good", preview: "good-acid", status: "CONSTRAINT 04 / ACCENT", terminal: "checkpoint 04: acid lime reserved" },
-  { id: "good-three", duration: 1400, reducedDuration: 140, phase: "good", preview: "good-three", status: "OPTIONAL MODULE / READY", terminal: "three.js: module queued / fallback verified" },
-  { id: "rebase", duration: 1800, reducedDuration: 150, phase: "git", preview: "good-three", status: "GIT / REBASE", terminal: "$ git rebase workflow/main" },
-  { id: "merge", duration: 1500, reducedDuration: 150, phase: "git", preview: "good-three", status: "GIT / FAST-FORWARD", terminal: "$ git merge --ff-only corrected-home" },
-  { id: "push", duration: 1500, reducedDuration: 160, phase: "git", preview: "ready", status: "TERMINAL / AWAITING COMMAND", terminal: "$ git push", command: "git push", commandLabel: "发布正确链路" },
+  { id: "good-dark", duration: 2300, reducedDuration: 150, phase: "good", preview: "good-dark", status: "CONSTRAINT 01 / PALETTE", terminal: "checkpoint 01: dark foundation" },
+  { id: "good-space", duration: 2100, reducedDuration: 140, phase: "good", preview: "good-space", status: "CONSTRAINT 02 / BACKGROUND", terminal: "checkpoint 02: pointer-responsive depth" },
+  { id: "good-copy", duration: 2200, reducedDuration: 140, phase: "good", preview: "good-copy", status: "CONSTRAINT 03 / COPY LOCK", terminal: "checkpoint 03: left copy preserved" },
+  { id: "good-acid", duration: 2300, reducedDuration: 140, phase: "good", preview: "good-acid", status: "CONSTRAINT 04 / ACCENT", terminal: "checkpoint 04: acid lime reserved" },
+  { id: "good-three", duration: 3000, reducedDuration: 140, phase: "good", preview: "good-three", status: "OPTIONAL MODULE / READY", terminal: "three.js: module queued / fallback verified" },
+  { id: "rebase", duration: 2500, reducedDuration: 150, phase: "git", preview: "good-three", status: "GIT / REBASE", terminal: "$ git rebase workflow/main" },
+  { id: "merge", duration: 2200, reducedDuration: 150, phase: "git", preview: "good-three", status: "GIT / FAST-FORWARD", terminal: "$ git merge --ff-only corrected-home" },
+  { id: "push", duration: 2500, reducedDuration: 160, phase: "git", preview: "ready", status: "TERMINAL / AWAITING COMMAND", terminal: "$ git push", command: "git push", commandLabel: "发布正确链路" },
   { id: "push-ready", duration: 2600, reducedDuration: 180, phase: "git", preview: "ready", status: "REMOTE / VERIFIED", terminal: "origin/codex/main-rework  ✓" },
   { id: "publishing", duration: 1700, reducedDuration: 220, phase: "publishing", preview: "ready", status: "LIVE / ENTERING HOMEPAGE", terminal: "deployment complete / handing off live scene" },
 ];
 
 const STEP_INDEX = Object.fromEntries(VIBE_OPENING_STEPS.map((step, index) => [step.id, index]));
 
-const CONVERSATION = [
-  { at: "boot", thread: 1, role: "system", text: "VIBE WORKBENCH / session 01 / no checkpoints" },
-  { at: "brief", thread: 1, role: "user", text: "我想写一个个人作品集。" },
-  { at: "draft", thread: 1, role: "assistant", text: "好的，我先生成一个看起来完整的主页。" },
-  { at: "gap", thread: 1, role: "user", text: "为什么背景没有填满？" },
-  { at: "scope", thread: 1, role: "assistant", text: "已经让背景铺满整个页面。" },
-  { at: "scope", thread: 1, role: "user", text: "我说的是背景图填满，但是字的位置不变啊。" },
-  { at: "panel", thread: 1, role: "assistant", text: "对不起，是我理解错了。我把文字放回原位。" },
-  { at: "panel", thread: 1, role: "user", text: "为什么字会有背景？" },
-  { at: "flat", thread: 1, role: "assistant", text: "对不起，我默认增加了可读性面板，现在去掉。" },
-  { at: "flat", thread: 1, role: "user", text: "字体都一样大，很呆板。字能不能排版好一点？" },
-  { at: "wrap", thread: 1, role: "assistant", text: "好的，我会重新组织文字层级。" },
-  { at: "wrap", thread: 1, role: "user", text: "为什么标题又分行了？而且我的项目入口呢？" },
-  { at: "revert", thread: 1, role: "system", text: "错误示例已停止。请选择一个可恢复的检查点。" },
-  { at: "new-chat", thread: 2, role: "system", text: "NEW CONTEXT / clean branch / constraints enabled" },
-  { at: "good-dark", thread: 2, role: "user", text: "我想要一个暗色调的个人主页。先只建立背景与色彩变量。" },
-  { at: "good-space", thread: 2, role: "user", text: "使用深空星系作为背景，视角跟随鼠标轻微移动；不要改布局。" },
-  { at: "good-copy", thread: 2, role: "user", text: "主界面左侧放个人介绍，保留现有内容和位置，完成后检查换行。" },
-  { at: "good-acid", thread: 2, role: "user", text: "只使用酸绿色点亮品牌斜杠、状态和关键交互。" },
-  { at: "good-three", thread: 2, role: "user", text: "右侧留白加入 Three.js 三体效果；真实物理、随机种子、可降级。" },
-  { at: "rebase", thread: 2, role: "assistant", text: "约束全部通过。现在把正确提交整理到一条可审查链路。" },
-  { at: "push-ready", thread: 2, role: "assistant", text: "已验证布局、内容与回退状态，可以发布。" },
+const CMD_PREFIX = "D:\\portfolio>";
+
+const CMD_TRANSCRIPT = [
+  { at: "boot", kind: "stdout", text: "Microsoft Windows [Version 10.0.26100.4946]" },
+  { at: "boot", kind: "dim", text: "(c) Microsoft Corporation. All rights reserved." },
+  { at: "boot", kind: "blank", text: "" },
+  { at: "brief", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"我想写一个个人作品集\"" },
+  { at: "brief", kind: "dim", text: "[read]  src/App.jsx, src/styles.css" },
+  { at: "draft", kind: "stdout", text: "[write] generated portfolio shell" },
+  { at: "draft", kind: "success", text: "[done]  homepage rendered in 1.6s" },
+  { at: "gap", kind: "blank", text: "" },
+  { at: "gap", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"为什么背景没有填满？\"" },
+  { at: "gap", kind: "dim", text: "[read]  hero background bounds" },
+  { at: "scope", kind: "stdout", text: "[write] background-size: cover; width: 100vw" },
+  { at: "scope", kind: "warn", text: "WARN  scope expanded from background to hero layout" },
+  { at: "scope", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"背景填满，但字的位置不要变\"" },
+  { at: "panel", kind: "stdout", text: "[write] restored copy position; added readability panel" },
+  { at: "panel", kind: "warn", text: "WARN  unrequested surface introduced behind copy" },
+  { at: "panel", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"为什么字会有背景？\"" },
+  { at: "flat", kind: "stdout", text: "[write] removed panel; normalized typography" },
+  { at: "flat", kind: "error", text: "ERROR visual hierarchy collapsed: 5 selectors now share one size" },
+  { at: "flat", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"字能不能排版好一点\"" },
+  { at: "wrap", kind: "stdout", text: "[write] recomposed headline and navigation" },
+  { at: "wrap", kind: "error", text: "ERROR heading wrapped; project entry removed as collateral edit" },
+  { at: "thesis", kind: "blank", text: "" },
+  { at: "thesis", kind: "warn", text: "WARN  6 edits / 5 regressions / 0 checkpoints" },
+  { at: "promise", kind: "dim", text: "hint: constrain -> checkpoint -> verify -> continue" },
+  { at: "revert", kind: "prompt", prefix: CMD_PREFIX, text: "revert" },
+  { at: "revert", kind: "dim", text: "[alias] git revert --no-edit 7f31c42" },
+  { at: "revert", kind: "stdout", text: "[codex/main-rework 1c8bd31] Revert \"feat: flatten hero typography\"" },
+  { at: "revert", kind: "stdout", text: " 3 files changed, 42 insertions(+), 96 deletions(-)" },
+  { at: "new-chat", kind: "prompt", prefix: CMD_PREFIX, text: "/new" },
+  { at: "new-chat", kind: "success", text: "[done]  context 01 closed; clean context 02 ready" },
+  { at: "good-dark", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"暗色个人主页；先只建立背景与色彩变量\"" },
+  { at: "good-dark", kind: "success", text: "[done]  checkpoint 01 / palette isolated" },
+  { at: "good-space", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"加入深空星点；不要改布局\"" },
+  { at: "good-space", kind: "success", text: "[done]  checkpoint 02 / background decoupled" },
+  { at: "good-copy", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"左侧加入介绍；锁定位置和换行\"" },
+  { at: "good-copy", kind: "success", text: "[done]  checkpoint 03 / copy geometry verified" },
+  { at: "good-acid", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"酸绿只用于斜杠、状态、关键交互\"" },
+  { at: "good-acid", kind: "success", text: "[done]  checkpoint 04 / accent budget passed" },
+  { at: "good-three", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"右侧加入 Three.js 三体；真实物理、随机种子、可降级\"" },
+  { at: "good-three", kind: "success", text: "[done]  checkpoint 05 / module + fallback verified" },
+  { at: "rebase", kind: "blank", text: "" },
+  { at: "rebase", kind: "prompt", prefix: CMD_PREFIX, text: "git rebase workflow/main" },
+  { at: "rebase", kind: "stdout", text: "First, rewinding head to replay your work on top of it..." },
+  { at: "rebase", kind: "success", text: "Successfully rebased and updated refs/heads/corrected-home." },
+  { at: "merge", kind: "prompt", prefix: CMD_PREFIX, text: "git merge --ff-only corrected-home" },
+  { at: "merge", kind: "stdout", text: "Updating 9c42b7a..cd8721f" },
+  { at: "merge", kind: "success", text: "Fast-forward" },
+  { at: "push", kind: "prompt", prefix: CMD_PREFIX, text: "git push" },
+  { at: "push", kind: "stdout", text: "Enumerating objects: 18, done." },
+  { at: "push", kind: "stdout", text: "Writing objects: 100% (18/18), 32.41 KiB | 5.20 MiB/s, done." },
+  { at: "push", kind: "success", text: "   9c42b7a..cd8721f  codex/main-rework -> codex/main-rework" },
+  { at: "push-ready", kind: "success", text: "PASS  remote ref matches local HEAD" },
+  { at: "publishing", kind: "blank", text: "" },
+  { at: "publishing", kind: "success", text: "[done]  remote verified; entering live homepage" },
 ];
 
-const GIT_NODES = [
-  { id: "base", at: "boot", label: "BASE", detail: "main", tone: "neutral" },
-  { id: "bad", at: "draft", label: "BAD", detail: "scope drift", tone: "bad" },
-  { id: "revert", at: "revert", label: "REVERT", detail: "restore", tone: "bad" },
-  { id: "clean", at: "new-chat", label: "NEW", detail: "clean context", tone: "good" },
-  { id: "correct", at: "good-acid", label: "GOOD", detail: "checkpoints", tone: "good" },
-  { id: "rebase", at: "rebase", label: "REBASE", detail: "linearize", tone: "good" },
-  { id: "merge", at: "merge", label: "MERGE", detail: "ff-only", tone: "good" },
-  { id: "push", at: "push-ready", label: "PUSH", detail: "origin", tone: "good" },
-];
-
-const CONSTRAINTS = [
-  { at: "good-dark", label: "暗色基底，不触碰内容" },
-  { at: "good-space", label: "背景运动与布局解耦" },
-  { at: "good-copy", label: "文案位置与换行锁定" },
-  { at: "good-acid", label: "酸绿仅用于关键状态" },
-  { at: "good-three", label: "Three.js 可选且可降级" },
-];
+const INDEXED_TRANSCRIPT = CMD_TRANSCRIPT.map((line, transcriptIndex) => ({ ...line, transcriptIndex }));
 
 function usePrefersReducedMotion() {
   const [reduced, setReduced] = useState(() => (
@@ -112,35 +130,6 @@ function BadPortfolioPreview({ variant }) {
   </div>;
 }
 
-function GitTimeline({ stepIndex }) {
-  const activeNode = GIT_NODES.reduce((current, node, index) => (
-    stepIndex >= STEP_INDEX[node.at] ? index : current
-  ), 0);
-  const gitProgress = GIT_NODES.length > 1 ? activeNode / (GIT_NODES.length - 1) : 1;
-
-  return <div className="vibe-intro__git" style={{ "--git-progress": gitProgress }} aria-label="Git 提交链路">
-    <span className="vibe-intro__git-line" aria-hidden="true" />
-    {GIT_NODES.map((node, index) => {
-      const state = index < activeNode ? "is-done" : index === activeNode ? "is-active" : "is-pending";
-      return <div className={`git-node ${state} is-${node.tone}`} key={node.id}>
-        <span className="git-node__dot" aria-hidden="true" />
-        <span className="git-node__copy"><strong>{node.label}</strong><small>{node.detail}</small></span>
-      </div>;
-    })}
-  </div>;
-}
-
-function ConstraintList({ stepIndex }) {
-  return <ul className="vibe-intro__constraints" aria-label="约束检查">
-    {CONSTRAINTS.map((item) => {
-      const done = stepIndex >= STEP_INDEX[item.at];
-      return <li className={`constraint-check ${done ? "is-done" : "is-pending"}`} key={item.label}>
-        <span aria-hidden="true">{done ? "✓" : "·"}</span>{item.label}
-      </li>;
-    })}
-  </ul>;
-}
-
 function normalizeCommand(value) {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
@@ -149,6 +138,75 @@ function commandMatches(value, expected) {
   const normalized = normalizeCommand(value);
   if (expected === "revert") return normalized === "revert" || normalized.startsWith("git revert");
   return normalized === expected;
+}
+
+function clearTimerGroup(timerRef) {
+  timerRef.current.forEach((timer) => window.clearTimeout(timer));
+  timerRef.current = [];
+}
+
+function getPlaybackTiming(reducedMotion) {
+  return reducedMotion ? {
+    firstLineDelay: 8,
+    lineStagger: 8,
+    beforePromptDelay: 8,
+    promptStartDelay: 4,
+    enterDelay: 12,
+    replyDelay: 12,
+    settleDelay: 10,
+  } : {
+    firstLineDelay: 340,
+    lineStagger: 190,
+    beforePromptDelay: 280,
+    promptStartDelay: 180,
+    enterDelay: 150,
+    replyDelay: 520,
+    settleDelay: 320,
+  };
+}
+
+function getTypingPlan(text, reducedMotion) {
+  const characters = Array.from(text);
+  const characterDelay = reducedMotion ? 2 : characters.length >= 36 ? 28 : characters.length >= 20 ? 38 : 56;
+  return { characters, characterDelay };
+}
+
+function getStepLineGroups(stepId) {
+  const lines = INDEXED_TRANSCRIPT.filter((line) => line.at === stepId);
+  let promptOffset = -1;
+  lines.forEach((line, index) => {
+    if (line.kind === "prompt") promptOffset = index;
+  });
+
+  return {
+    lines,
+    prompt: promptOffset >= 0 ? lines[promptOffset] : null,
+    leading: promptOffset >= 0 ? lines.slice(0, promptOffset) : lines,
+    trailing: promptOffset >= 0 ? lines.slice(promptOffset + 1) : [],
+  };
+}
+
+function getStepPlaybackDuration(step, groups, reducedMotion) {
+  const timing = getPlaybackTiming(reducedMotion);
+  const promptText = step.command ?? groups.prompt?.text ?? "";
+  const typing = getTypingPlan(promptText, reducedMotion);
+  let duration = 0;
+
+  if (groups.leading.length) {
+    duration += timing.firstLineDelay + Math.max(0, groups.leading.length - 1) * timing.lineStagger;
+  }
+
+  if (groups.prompt) {
+    duration += groups.leading.length ? timing.beforePromptDelay : timing.promptStartDelay;
+    duration += typing.characters.length * typing.characterDelay + timing.enterDelay;
+    if (groups.trailing.length) {
+      duration += timing.replyDelay + Math.max(0, groups.trailing.length - 1) * timing.lineStagger;
+    }
+  }
+
+  duration += timing.settleDelay;
+  const authoredDuration = reducedMotion ? step.reducedDuration : step.duration;
+  return Math.max(authoredDuration, duration);
 }
 
 export function VibeCodingOpening({
@@ -161,12 +219,37 @@ export function VibeCodingOpening({
   const reducedMotion = usePrefersReducedMotion();
   const [stepIndex, setStepIndex] = useState(0);
   const [settled, setSettled] = useState(!active);
-  const [commandInput, setCommandInput] = useState("");
+  const [commandEntry, setCommandEntry] = useState({ key: "", value: "" });
+  const [timelineEntry, setTimelineEntry] = useState({
+    key: "",
+    phase: "idle",
+    leadingCount: 0,
+    promptLength: 0,
+    trailingCount: 0,
+  });
   const [commandState, setCommandState] = useState("");
   const completionRef = useRef(false);
   const commandTimerRef = useRef(null);
+  const timelineTimersRef = useRef([]);
+  const commandUserOwnedRef = useRef(false);
+  const cmdBufferRef = useRef(null);
   const step = VIBE_OPENING_STEPS[stepIndex] ?? VIBE_OPENING_STEPS[0];
+  const currentStepKey = `${runKey}:${step.id}`;
   const isRunning = active && !settled;
+  const stepGroups = useMemo(() => getStepLineGroups(step.id), [step.id]);
+  const stepPlaybackDuration = useMemo(
+    () => getStepPlaybackDuration(step, stepGroups, reducedMotion),
+    [reducedMotion, step, stepGroups],
+  );
+  const timelineIsCurrent = timelineEntry.key === currentStepKey;
+  const timeline = timelineIsCurrent ? timelineEntry : {
+    key: currentStepKey,
+    phase: "leading",
+    leadingCount: 0,
+    promptLength: 0,
+    trailingCount: 0,
+  };
+  const commandInput = commandEntry.key === currentStepKey ? commandEntry.value : "";
 
   const finish = useCallback(() => {
     if (completionRef.current) return;
@@ -176,43 +259,155 @@ export function VibeCodingOpening({
   }, [onComplete]);
 
   useEffect(() => {
+    window.clearTimeout(commandTimerRef.current);
+    clearTimerGroup(timelineTimersRef);
     if (!active) {
       setSettled(true);
       return;
     }
     completionRef.current = false;
     setStepIndex(0);
-    setCommandInput("");
+    commandUserOwnedRef.current = false;
+    setCommandEntry({ key: "", value: "" });
+    setTimelineEntry({ key: "", phase: "idle", leadingCount: 0, promptLength: 0, trailingCount: 0 });
     setCommandState("");
     setSettled(false);
   }, [active, runKey]);
 
-  useEffect(() => () => window.clearTimeout(commandTimerRef.current), []);
+  useEffect(() => () => {
+    window.clearTimeout(commandTimerRef.current);
+    clearTimerGroup(timelineTimersRef);
+  }, []);
 
   useEffect(() => {
     if (!isRunning) return undefined;
-    const delay = reducedMotion ? step.reducedDuration : step.duration;
     const timer = window.setTimeout(() => {
       if (stepIndex >= VIBE_OPENING_STEPS.length - 1) {
         finish();
         return;
       }
       setStepIndex((current) => Math.min(current + 1, VIBE_OPENING_STEPS.length - 1));
-    }, delay);
+    }, stepPlaybackDuration);
     return () => window.clearTimeout(timer);
-  }, [finish, isRunning, reducedMotion, step.duration, step.reducedDuration, stepIndex]);
+  }, [finish, isRunning, stepPlaybackDuration, stepIndex]);
 
   useEffect(() => {
-    setCommandInput("");
+    clearTimerGroup(timelineTimersRef);
+    commandUserOwnedRef.current = false;
     setCommandState("");
-  }, [stepIndex]);
+    setCommandEntry({ key: currentStepKey, value: "" });
 
-  const visibleMessages = useMemo(() => {
-    const thread = stepIndex >= STEP_INDEX["new-chat"] ? 2 : 1;
-    return CONVERSATION
-      .filter((message) => message.thread === thread && STEP_INDEX[message.at] <= stepIndex)
-      .slice(-8);
-  }, [stepIndex]);
+    if (!isRunning) return undefined;
+
+    const timing = getPlaybackTiming(reducedMotion);
+    const promptText = step.command ?? stepGroups.prompt?.text ?? "";
+    const typing = getTypingPlan(promptText, reducedMotion);
+    const timers = timelineTimersRef.current;
+    let leadingCount = 0;
+    let promptLength = 0;
+    let trailingCount = 0;
+
+    const schedule = (callback, delay) => {
+      const timer = window.setTimeout(callback, delay);
+      timers.push(timer);
+    };
+    const updateTimeline = (phase) => setTimelineEntry({
+      key: currentStepKey,
+      phase,
+      leadingCount,
+      promptLength,
+      trailingCount,
+    });
+    const finishTimeline = () => updateTimeline("complete");
+
+    const revealTrailing = (index) => {
+      trailingCount = index + 1;
+      updateTimeline("responding");
+      if (trailingCount < stepGroups.trailing.length) {
+        schedule(() => revealTrailing(index + 1), timing.lineStagger);
+      } else {
+        schedule(finishTimeline, timing.settleDelay);
+      }
+    };
+
+    const waitForReply = () => {
+      updateTimeline("waiting");
+      if (stepGroups.trailing.length) {
+        schedule(() => revealTrailing(0), timing.replyDelay);
+      } else {
+        schedule(finishTimeline, timing.settleDelay);
+      }
+    };
+
+    const typePrompt = (index) => {
+      if (step.command && commandUserOwnedRef.current) return;
+      promptLength = index + 1;
+      const finishedTyping = promptLength >= typing.characters.length;
+      if (step.command) {
+        setCommandEntry({ key: currentStepKey, value: typing.characters.slice(0, promptLength).join("") });
+      }
+      updateTimeline(finishedTyping ? "entering" : "typing");
+      if (finishedTyping) {
+        schedule(waitForReply, timing.enterDelay);
+      } else {
+        schedule(() => typePrompt(index + 1), typing.characterDelay);
+      }
+    };
+
+    const startPrompt = () => {
+      if (!stepGroups.prompt) {
+        schedule(finishTimeline, timing.settleDelay);
+        return;
+      }
+      updateTimeline("typing");
+      schedule(() => typePrompt(0), typing.characterDelay);
+    };
+
+    const afterLeading = () => {
+      if (stepGroups.prompt) {
+        schedule(startPrompt, stepGroups.leading.length ? timing.beforePromptDelay : timing.promptStartDelay);
+      } else {
+        schedule(finishTimeline, timing.settleDelay);
+      }
+    };
+
+    const revealLeading = (index) => {
+      leadingCount = index + 1;
+      updateTimeline("leading");
+      if (leadingCount < stepGroups.leading.length) {
+        schedule(() => revealLeading(index + 1), timing.lineStagger);
+      } else {
+        afterLeading();
+      }
+    };
+
+    setTimelineEntry({
+      key: currentStepKey,
+      phase: "leading",
+      leadingCount: 0,
+      promptLength: 0,
+      trailingCount: 0,
+    });
+
+    if (stepGroups.leading.length) {
+      schedule(() => revealLeading(0), timing.firstLineDelay);
+    } else if (stepGroups.prompt) {
+      schedule(startPrompt, timing.promptStartDelay);
+    } else {
+      schedule(finishTimeline, timing.settleDelay);
+    }
+
+    return () => clearTimerGroup(timelineTimersRef);
+  }, [currentStepKey, isRunning, reducedMotion, step.command, stepGroups]);
+
+  useEffect(() => {
+    const buffer = cmdBufferRef.current;
+    if (!buffer) return undefined;
+    const frame = window.requestAnimationFrame(() => {
+      buffer.scrollTop = buffer.scrollHeight;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [commandEntry.value, commandState, stepIndex, timeline.leadingCount, timeline.phase, timeline.promptLength, timeline.trailingCount]);
 
   const advanceFromCommand = useCallback((expected) => {
     const nextIndex = Math.min(stepIndex + 1, VIBE_OPENING_STEPS.length - 1);
@@ -231,16 +426,28 @@ export function VibeCodingOpening({
     advanceFromCommand(step.command);
   }, [advanceFromCommand, commandInput, step.command]);
 
-  const useSuggestedCommand = useCallback(() => {
-    if (!step.command) return;
-    setCommandInput(step.command);
-    advanceFromCommand(step.command);
-  }, [advanceFromCommand, step.command]);
-
   const progress = isRunning ? (stepIndex + 1) / VIBE_OPENING_STEPS.length : 1;
   const showBadPreview = isRunning && BAD_PREVIEWS.has(step.preview);
   const displayPhase = isRunning ? step.phase : "complete";
   const displayPreview = isRunning ? step.preview : "ready";
+  const historyLines = INDEXED_TRANSCRIPT.filter((line) => STEP_INDEX[line.at] < stepIndex);
+  const visibleLeading = stepGroups.leading.slice(0, timeline.leadingCount);
+  const visibleTrailing = stepGroups.trailing.slice(0, timeline.trailingCount);
+  const promptHasStarted = Boolean(stepGroups.prompt) && timeline.phase !== "leading" && timeline.phase !== "idle";
+  const promptIsEditable = Boolean(step.command) && ["typing", "entering", "manual"].includes(timeline.phase);
+  const promptText = stepGroups.prompt
+    ? Array.from(stepGroups.prompt.text).slice(0, timeline.promptLength).join("")
+    : "";
+
+  const renderCmdLine = (line, options = {}) => <p
+    className={`vibe-intro__cmd-line vibe-intro__cmd-line--${line.kind}${options.className ?? ""}`}
+    data-typing-state={options.typingState}
+    key={`${line.at}-${line.kind}-${line.transcriptIndex}-${options.keySuffix ?? "line"}`}
+    aria-hidden={line.kind === "blank" || options.ariaHidden ? "true" : undefined}
+  >
+    {line.prefix && <span className="vibe-intro__cmd-prefix">{line.prefix}</span>}
+    {line.prefix && " "}{line.kind === "blank" ? "\u00a0" : options.text ?? line.text}
+  </p>;
 
   return <div
     className={`opening-stage${isRunning ? " is-running" : " is-complete"}`}
@@ -261,23 +468,65 @@ export function VibeCodingOpening({
       <span className="vibe-intro__progress" aria-hidden="true" />
       <header className="vibe-intro__topbar">
         <p className="vibe-intro__brand">MAPLE <i aria-hidden="true">/</i> VIBE WORKBENCH</p>
-        <p className="vibe-intro__status"><span aria-hidden="true" />{step.status}</p>
-        <button className="vibe-intro__skip" type="button" onClick={finish}>跳过演示 <span aria-hidden="true">↗</span></button>
       </header>
+      <button className="vibe-intro__skip" type="button" onClick={finish}>跳过演示 <span aria-hidden="true">↗</span></button>
 
-      <aside className="vibe-intro__conversation" aria-label="提示词对话">
-        <div className="vibe-intro__conversation-head">
-          <span>CHAT / {stepIndex >= STEP_INDEX["new-chat"] ? "02" : "01"}</span>
-          <span>{stepIndex >= STEP_INDEX["new-chat"] ? "CONSTRAINED" : "UNBOUNDED"}</span>
+      <aside
+        className="vibe-intro__conversation"
+        aria-label="Vibe Coding CMD 记录"
+        data-typing-state={timeline.phase}
+      >
+        <div className="vibe-intro__cmd-titlebar">
+          <p>Command Prompt</p>
         </div>
-        <div className="vibe-intro__messages" aria-live="polite">
-          {visibleMessages.map((message, index) => <div
-            className={`vibe-message vibe-message--${message.role}${index === visibleMessages.length - 1 ? " is-current" : ""}`}
-            key={`${message.at}-${message.role}-${message.text}`}
+        <div ref={cmdBufferRef} className="vibe-intro__cmd-buffer" role="log" aria-live="polite" aria-relevant="additions text">
+          {historyLines.map((line) => renderCmdLine(line))}
+          {visibleLeading.map((line, index) => renderCmdLine(line, {
+            className: timeline.phase === "leading" && index === visibleLeading.length - 1 ? " is-revealing" : "",
+            keySuffix: `leading-${index}`,
+          }))}
+
+          {promptHasStarted && (promptIsEditable ? <form
+            className={`vibe-intro__cmd-prompt${timeline.phase === "typing" ? " is-typing" : timeline.phase === "entering" ? " is-entering" : ""}`}
+            data-typing-state={timeline.phase}
+            style={{ "--cmd-input-columns": Array.from(commandInput).length }}
+            onSubmit={submitCommand}
           >
-            <span>{message.role === "user" ? "YOU" : message.role === "assistant" ? "AI" : "SYS"}</span>
-            <p>{message.text}</p>
-          </div>)}
+            <span className="vibe-intro__cmd-prefix" aria-hidden="true">{CMD_PREFIX}</span>
+            <input
+              className="vibe-intro__cmd-input"
+              value={commandInput}
+              onChange={(event) => {
+                clearTimerGroup(timelineTimersRef);
+                commandUserOwnedRef.current = true;
+                setCommandEntry({ key: currentStepKey, value: event.target.value });
+                setTimelineEntry((current) => ({
+                  ...current,
+                  key: currentStepKey,
+                  phase: "manual",
+                  promptLength: Array.from(event.target.value).length,
+                }));
+                setCommandState("");
+              }}
+              autoComplete="off"
+              spellCheck="false"
+              aria-label={`输入演示命令：${step.command}`}
+            />
+            <button className="vibe-intro__cmd-submit sr-only" type="submit">运行命令</button>
+          </form> : renderCmdLine(stepGroups.prompt, {
+            className: timeline.phase === "typing" ? " is-typing" : timeline.phase === "entering" ? " is-entering" : "",
+            typingState: timeline.phase,
+            text: step.command ? commandInput || stepGroups.prompt.text : promptText,
+            ariaHidden: ["typing", "entering"].includes(timeline.phase),
+            keySuffix: ["typing", "entering"].includes(timeline.phase) ? "typing" : "committed",
+          }))}
+
+          {commandState === "error" && <p className="vibe-intro__cmd-line vibe-intro__cmd-line--error" role="alert">ERROR unknown demo command; expected {step.command}</p>}
+
+          {visibleTrailing.map((line, index) => renderCmdLine(line, {
+            className: timeline.phase === "responding" && index === visibleTrailing.length - 1 ? " is-revealing" : "",
+            keySuffix: `trailing-${index}`,
+          }))}
         </div>
       </aside>
 
@@ -293,35 +542,6 @@ export function VibeCodingOpening({
           <strong>错误链不必成为历史。</strong>
         </>}
       </div>}
-
-      <footer className="vibe-intro__terminal">
-        <div className="vibe-intro__terminal-head">
-          <span>DEMO TERMINAL / SIMULATION ONLY</span>
-          <code>{step.terminal}</code>
-        </div>
-        <GitTimeline stepIndex={stepIndex} />
-        {step.command ? <form className="vibe-intro__command-row" onSubmit={submitCommand}>
-          <label htmlFor="vibe-command">输入演示命令</label>
-          <span aria-hidden="true">$</span>
-          <input
-            id="vibe-command"
-            className="vibe-intro__command-input"
-            value={commandInput}
-            onChange={(event) => {
-              setCommandInput(event.target.value);
-              setCommandState("");
-            }}
-            autoComplete="off"
-            spellCheck="false"
-            placeholder={step.command}
-            aria-describedby="vibe-command-hint"
-          />
-          <button className="vibe-intro__command-submit" type="submit">执行</button>
-          <button className="vibe-intro__hint" id="vibe-command-hint" type="button" onClick={useSuggestedCommand}>{step.commandLabel} / {step.command}</button>
-          {commandState === "error" && <em role="alert">命令不匹配；此处期待 {step.command}</em>}
-          {commandState.startsWith("accepted:") && <em className="is-accepted">accepted ✓</em>}
-        </form> : <ConstraintList stepIndex={stepIndex} />}
-      </footer>
     </div>}
   </div>;
 }
