@@ -38,6 +38,9 @@ function createProject(path, source) {
     category: String(data.category),
     excerpt: String(data.excerpt),
     cover: String(data.cover),
+    coverFit: data.coverFit === "contain" ? "contain" : "cover",
+    coverPosition: String(data.coverPosition || "center center"),
+    coverBackground: String(data.coverBackground || "#03070d"),
     technologies: Array.isArray(data.technologies)
       ? data.technologies.map((technology) => String(technology).trim()).filter(Boolean)
       : [],
