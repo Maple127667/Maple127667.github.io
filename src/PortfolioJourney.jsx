@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -55,7 +55,7 @@ function ProjectDestination({ project }) {
   </a>;
 }
 
-export function PortfolioJourney({ active, projects, onOpenProject }) {
+export function PortfolioJourney({ active, suspended = false, projects, onOpenProject }) {
   const rootRef = useRef(null);
   const stackRef = useRef(null);
   const stackGroupRefs = useRef(new Map());
@@ -68,6 +68,7 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
   const ringLockedRef = useRef(false);
   const hoveredProjectRef = useRef(null);
   const scheduleMotionRef = useRef(() => {});
+  const suspendedRef = useRef(suspended);
   const ringInteractionRef = useRef({
     rotationPosition: 0,
     rotationSpeed: 1,
@@ -104,6 +105,21 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
     media.addEventListener?.("change", updateMode);
     return () => media.removeEventListener?.("change", updateMode);
   }, []);
+
+  useLayoutEffect(() => {
+    suspendedRef.current = suspended;
+    if (suspended) {
+      const interaction = ringInteractionRef.current;
+      interaction.pointerId = null;
+      interaction.candidate = false;
+      interaction.dragging = false;
+      interaction.pendingDelta = 0;
+      interaction.manualVelocity = 0;
+      projectPlaneRef.current?.removeAttribute("data-dragging");
+      if (rootRef.current) rootRef.current.dataset.ringInteractive = "false";
+    }
+    scheduleMotionRef.current();
+  }, [suspended]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -288,6 +304,10 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
 
     const render = (frameTime = performance.now()) => {
       frame = null;
+      if (suspendedRef.current) {
+        previousFrameTime = frameTime;
+        return;
+      }
       const frameDelta = Math.min(0.05, Math.max(0.001, (frameTime - previousFrameTime) / 1000));
       previousFrameTime = frameTime;
       pointerX += (pointerTargetX - pointerX) * (1 - Math.exp(-frameDelta * 6));
@@ -550,12 +570,13 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
 
     const handlePointerMove = (event) => {
       if (event.pointerType === "touch") return;
-      if (ringInteraction.dragging) return;
+      if (suspendedRef.current || ringInteraction.dragging) return;
       pointerTargetX = clamp((event.clientX / Math.max(1, window.innerWidth)) * 2 - 1, -1, 1);
       pointerTargetY = clamp((event.clientY / Math.max(1, window.innerHeight)) * 2 - 1, -1, 1);
       schedule();
     };
     const resetPointer = () => {
+      if (suspendedRef.current) return;
       pointerTargetX = 0;
       pointerTargetY = 0;
       schedule();
@@ -593,12 +614,16 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
   }, [active, metrics, projects, staticMode]);
 
   const showProjectDetail = (projectId) => {
-    if (ringInteractionRef.current.dragging || ringLockedRef.current || stackActiveRef.current) return;
+    if (suspendedRef.current
+      || ringInteractionRef.current.dragging
+      || ringLockedRef.current
+      || stackActiveRef.current) return;
     hoveredProjectRef.current = projectId;
     setDetailProjectId(projectId);
     scheduleMotionRef.current();
   };
   const hideProjectDetail = (projectId, card) => {
+    if (suspendedRef.current) return;
     if (hoveredProjectRef.current === projectId) hoveredProjectRef.current = null;
     setDetailProjectId((current) => current === projectId ? null : current);
     card?.style.setProperty("--project-light-x", "50%");
@@ -607,6 +632,7 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
   };
   const updateCardPointer = (event) => {
     if (event.pointerType === "touch"
+      || suspendedRef.current
       || ringInteractionRef.current.dragging
       || ringLockedRef.current) return;
     const card = event.currentTarget;
@@ -618,7 +644,7 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
   };
 
   const toggleRotation = () => {
-    if (ringLockedRef.current || stackActiveRef.current) return;
+    if (suspendedRef.current || ringLockedRef.current || stackActiveRef.current) return;
     const interaction = ringInteractionRef.current;
     const nextPaused = !interaction.paused;
     interaction.paused = nextPaused;
@@ -631,7 +657,8 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
   };
 
   const beginRingDrag = (event) => {
-    if (staticMode
+    if (suspendedRef.current
+      || staticMode
       || ringLockedRef.current
       || stackActiveRef.current
       || (event.pointerType === "mouse" && event.button !== 0)) return;
@@ -715,6 +742,7 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
     className="portfolio-journey"
     aria-label="项目与技术栈"
     data-static={staticMode ? "true" : "false"}
+    data-suspended={suspended ? "true" : "false"}
     data-stack-active={stackActive || staticMode ? "true" : "false"}
     data-handoff-active={handoffActive ? "true" : "false"}
   >
@@ -723,7 +751,7 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
       ref={projectPlaneRef}
       className="portfolio-journey__project-plane"
       aria-label="可拖拽旋转的项目环"
-      inert={!staticMode && (handoffActive || stackActive) ? true : undefined}
+      inert={!staticMode && (suspended || handoffActive || stackActive) ? true : undefined}
       onPointerDown={beginRingDrag}
       onPointerMove={moveRingDrag}
       onPointerUp={(event) => endRingDrag(event)}
@@ -747,7 +775,7 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
             data-paused={rotationPaused ? "true" : "false"}
             aria-pressed={rotationPaused}
             aria-label={rotationPaused ? "继续项目环自动旋转" : "暂停项目环自动旋转"}
-            tabIndex={!staticMode && (handoffActive || stackActive) ? -1 : 0}
+            tabIndex={!staticMode && (suspended || handoffActive || stackActive) ? -1 : 0}
             onClick={toggleRotation}
           >
             <i aria-hidden="true" />
@@ -761,14 +789,20 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
         const isCurrent = staticMode || activeIndex === projectIndex;
         const isDetailed = staticMode || detailProjectId === project.id;
         const cardsAreInteractive = staticMode
-          || (activeIndex >= 0 && !stackActive && !handoffActive);
+          || (activeIndex >= 0 && !suspended && !stackActive && !handoffActive);
         return <article
           ref={(node) => {
             if (node) projectRefs.current.set(project.id, node);
             else projectRefs.current.delete(project.id);
           }}
           className={`portfolio-project portfolio-project--${project.id}`}
-          style={{ "--project-accent-offset": `${22 + projectIndex * 14}px` }}
+          style={{
+            "--project-accent-offset": `${22 + projectIndex * 14}px`,
+            "--project-cover-fit": project.coverFit,
+            "--project-cover-position": project.coverPosition,
+            "--project-cover-background": project.coverBackground,
+          }}
+          data-project-id={project.id}
           aria-labelledby={`portfolio-project-${project.id}`}
           aria-current={isCurrent ? "true" : undefined}
           aria-hidden={cardsAreInteractive ? undefined : "true"}
@@ -798,7 +832,7 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
                 event.preventDefault();
                 return;
               }
-              onOpenProject(project.id);
+              onOpenProject(project.id, projectRefs.current.get(project.id), event.currentTarget);
             }}
           />
           <div
@@ -814,7 +848,7 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
               <button
                 className="text-link portfolio-project__reader-action"
                 type="button"
-                onClick={() => onOpenProject(project.id)}
+                onClick={(event) => onOpenProject(project.id, projectRefs.current.get(project.id), event.currentTarget)}
               >
                 查看项目 <ArrowRight size={17} weight="bold" aria-hidden="true" />
               </button>

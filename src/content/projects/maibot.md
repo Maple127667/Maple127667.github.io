@@ -7,6 +7,8 @@ year: "持续参与"
 category: "OPEN SOURCE / 协作工程"
 excerpt: "从个人开发走进大型开源协作：规范让贡献可以被理解与追溯，讨论让局部判断进入更大的视野，而热爱让创造力在人与人之间持续流动。"
 cover: "/assets/projects/maibot-character.png"
+coverFit: "contain"
+coverBackground: "#000000"
 status: "CONTRIBUTING / 持续协作中"
 technologies: ["Python", "TypeScript", "LLM Agent", "Planner", "Multi-Round Tool Calling", "React", "IPC Plugin Runtime", "A_Memorix"]
 linkUrl: "https://github.com/Mai-with-u/MaiBot"
