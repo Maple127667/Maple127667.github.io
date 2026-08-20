@@ -677,43 +677,71 @@
   font-weight: 700;
 }
 
-.portfolio-journey__tokens {
+.portfolio-journey__handoff {
   position: absolute;
-  z-index: 9;
+  z-index: 7;
   inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0;
+  opacity: var(--handoff-opacity, 0);
+  text-align: center;
+  transform: scale(var(--handoff-scale, 0.92));
+  transform-origin: 50% 50%;
+  will-change: transform, opacity;
   pointer-events: none;
 }
 
-.portfolio-token {
-  --token-x: 0vw;
-  --token-y: 72vh;
-  --token-scale: 1;
-  --token-opacity: 0;
-  --token-merge: 0;
-  position: absolute;
-  top: 0;
-  left: 50%;
-  min-height: 32px;
-  padding: 7px 10px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  opacity: var(--token-opacity);
-  color: #c9d1d8;
-  border: 1px solid rgba(133, 163, 190, 0.24);
-  background: rgba(4, 9, 15, 0.72);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22);
-  font: 560 14px/1.2 var(--ui);
-  white-space: nowrap;
-  transform: translate3d(calc(-50% + var(--token-x)), var(--token-y), 0) scale(var(--token-scale));
-  will-change: transform, opacity;
+.portfolio-journey__handoff-mark,
+.portfolio-journey__handoff > i {
+  width: 4px;
+  height: 34px;
+  display: block;
+  margin-bottom: 20px;
+  background: var(--journey-acid);
+  box-shadow: 0 0 14px rgba(200, 255, 35, 0.16);
+  transform: skewX(-17deg);
 }
 
-.portfolio-token small {
-  opacity: var(--token-merge);
-  color: var(--journey-acid);
-  font-size: 11px;
-  font-weight: 700;
+.portfolio-journey__handoff p {
+  margin: 0;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+
+.portfolio-journey__handoff .portfolio-journey__handoff-from,
+.portfolio-journey__handoff p > span {
+  margin: 0 0 8px;
+  color: #8494a3;
+  font: 650 12px/1.2 var(--ui);
+  letter-spacing: 0.11em;
+}
+
+.portfolio-journey__handoff-into,
+.portfolio-journey__handoff p > strong {
+  color: #eef2f5;
+  font: 440 clamp(30px, 4vw, 60px) / 0.96 var(--display);
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+
+.portfolio-journey[data-handoff-active="true"] .portfolio-journey__drag-surface,
+.portfolio-journey[data-handoff-active="true"] .portfolio-journey__rotation-toggle,
+.portfolio-journey[data-handoff-active="true"] .portfolio-project,
+.portfolio-journey[data-handoff-active="true"] .portfolio-project__open-hit,
+.portfolio-journey[data-handoff-active="true"] .portfolio-project__actions {
+  pointer-events: none !important;
+}
+
+.portfolio-journey[data-handoff-active="true"] .portfolio-project__copy,
+.portfolio-journey[data-handoff-active="true"] .portfolio-project__inline-stack {
+  opacity: 0 !important;
+}
+
+.portfolio-journey[data-handoff-active="true"] .portfolio-project__compact-label {
+  opacity: 1 !important;
 }
 
 .portfolio-stack {
@@ -737,6 +765,9 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 36px;
+  opacity: var(--stack-heading-opacity, 0);
+  transform: translate3d(0, var(--stack-heading-y, 24px), 0);
+  will-change: transform, opacity;
 }
 
 .portfolio-stack__heading p {
@@ -758,18 +789,59 @@
 
 .portfolio-stack__groups {
   position: absolute;
-  top: 34svh;
+  top: 32svh;
   right: 8vw;
+  bottom: 7svh;
   left: 8vw;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: clamp(18px, 3vw, 48px);
+  grid-template-areas:
+    "agent knowledge interface"
+    "agent language interface"
+    "integration integration integration";
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.9fr) minmax(0, 0.9fr);
+  grid-template-rows: repeat(2, minmax(0, 1fr)) auto;
+  gap: clamp(16px, 2.2vw, 36px) clamp(22px, 3vw, 48px);
 }
 
 .portfolio-stack__group {
   min-width: 0;
   padding-top: 14px;
+  opacity: var(--stack-group-opacity, 0);
   border-top: 1px solid rgba(139, 168, 193, 0.26);
+  transform: translate3d(var(--stack-group-x, 0), var(--stack-group-y, 24px), 0) scale(var(--stack-group-scale, 0.98));
+  transform-origin: 50% 0;
+  will-change: transform, opacity;
+}
+
+.portfolio-journey[data-stack-active="true"] .portfolio-stack__heading,
+.portfolio-journey[data-stack-active="true"] .portfolio-stack__group {
+  transform: none;
+  will-change: auto;
+}
+
+.portfolio-stack__group[data-group="agent"],
+.portfolio-stack__group:nth-child(1) {
+  grid-area: agent;
+}
+
+.portfolio-stack__group[data-group="knowledge"],
+.portfolio-stack__group:nth-child(2) {
+  grid-area: knowledge;
+}
+
+.portfolio-stack__group[data-group="interface"],
+.portfolio-stack__group:nth-child(3) {
+  grid-area: interface;
+}
+
+.portfolio-stack__group[data-group="language"],
+.portfolio-stack__group:nth-child(4) {
+  grid-area: language;
+}
+
+.portfolio-stack__group[data-group="integration"],
+.portfolio-stack__group:nth-child(5) {
+  grid-area: integration;
 }
 
 .portfolio-stack__group > p {
@@ -784,6 +856,14 @@
   color: #dce3e8;
   font-size: clamp(18px, 1.7vw, 25px);
   font-weight: 520;
+}
+
+.portfolio-stack__group[data-group="agent"] h3,
+.portfolio-stack__group:nth-child(1) h3 {
+  max-width: 12ch;
+  color: #eff3f5;
+  font-size: clamp(27px, 2.6vw, 42px);
+  line-height: 1.08;
 }
 
 .portfolio-stack__semantic-list {
@@ -801,8 +881,60 @@
   white-space: normal;
 }
 
+.portfolio-stack__semantic-list li {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
 .portfolio-stack__semantic-list li:first-child {
   color: var(--journey-acid);
+}
+
+.portfolio-stack__group[data-group="agent"] .portfolio-stack__semantic-list,
+.portfolio-stack__group:nth-child(1) .portfolio-stack__semantic-list {
+  margin-top: 24px;
+  gap: 11px;
+  color: #cbd4db;
+  font-size: clamp(15px, 1.15vw, 18px);
+}
+
+.portfolio-stack__group[data-group="integration"],
+.portfolio-stack__group:nth-child(5) {
+  padding-top: 10px;
+  display: grid;
+  grid-template-columns: minmax(180px, 0.55fr) minmax(220px, 0.75fr) minmax(0, 2fr);
+  align-items: start;
+  column-gap: clamp(18px, 2.5vw, 40px);
+  border-top-color: rgba(139, 168, 193, 0.16);
+}
+
+.portfolio-stack__group[data-group="integration"] > p,
+.portfolio-stack__group:nth-child(5) > p {
+  color: #647483;
+}
+
+.portfolio-stack__group[data-group="integration"] h3,
+.portfolio-stack__group:nth-child(5) h3 {
+  margin-top: 0;
+  color: #9eabb6;
+  font-size: clamp(16px, 1.3vw, 20px);
+}
+
+.portfolio-stack__group[data-group="integration"] .portfolio-stack__semantic-list,
+.portfolio-stack__group:nth-child(5) .portfolio-stack__semantic-list {
+  margin-top: 0;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 22px;
+  color: #7f8d99;
+  font-size: 14px;
+}
+
+.portfolio-stack__group[data-group="integration"] .portfolio-stack__semantic-list li:first-child,
+.portfolio-stack__group:nth-child(5) .portfolio-stack__semantic-list li:first-child {
+  color: #9aa8b4;
 }
 
 .contact__return {
@@ -855,17 +987,80 @@
   }
 
   .portfolio-stack__groups {
+    top: 31svh;
     right: 5vw;
+    bottom: 5svh;
     left: 5vw;
-    gap: 12px;
+    grid-template-areas:
+      "agent knowledge"
+      "agent interface"
+      "language interface"
+      "integration integration";
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    grid-template-rows: repeat(3, minmax(0, 1fr)) auto;
+    gap: 12px 24px;
   }
 
   .portfolio-stack__group h3 {
+    margin-top: 4px;
     font-size: 17px;
+    line-height: 1.1;
+  }
+
+  .portfolio-stack__group {
+    padding-top: 6px;
+  }
+
+  .portfolio-stack__group > p {
+    line-height: 1.1;
+  }
+
+  .portfolio-stack__semantic-list {
+    margin-top: 6px;
+    gap: 3px;
+    font-size: 13px;
+    line-height: 1.2;
+  }
+
+  .portfolio-stack__group[data-group="agent"] h3,
+  .portfolio-stack__group:nth-child(1) h3 {
+    font-size: clamp(24px, 3vw, 30px);
+    line-height: 1.05;
+  }
+
+  .portfolio-stack__group[data-group="agent"] .portfolio-stack__semantic-list,
+  .portfolio-stack__group:nth-child(1) .portfolio-stack__semantic-list {
+    margin-top: 8px;
+    gap: 4px;
+    font-size: 13px;
+    line-height: 1.2;
+  }
+
+  .portfolio-stack__group[data-group="integration"],
+  .portfolio-stack__group:nth-child(5) {
+    padding-top: 6px;
+    grid-template-columns: minmax(150px, 0.6fr) minmax(180px, 0.8fr) minmax(0, 1.8fr);
+    column-gap: 18px;
+  }
+
+  .portfolio-stack__group[data-group="integration"] .portfolio-stack__semantic-list,
+  .portfolio-stack__group:nth-child(5) .portfolio-stack__semantic-list {
+    gap: 4px 16px;
+    font-size: 13px;
+    line-height: 1.2;
   }
 }
 
 @media (min-width: 761px) and (max-height: 800px) {
+  .portfolio-stack__heading {
+    top: 78px;
+  }
+
+  .portfolio-stack__heading h2 {
+    font-size: clamp(34px, 3vw, 48px);
+    line-height: 1.02;
+  }
+
   .portfolio-project__copy {
     padding: 34px 18px 52px;
     transform: translateZ(34px);
@@ -1080,7 +1275,7 @@
     font: 620 12px/1.2 var(--ui);
   }
 
-  .portfolio-journey__tokens {
+  .portfolio-journey__handoff {
     display: none;
   }
 
@@ -1098,6 +1293,9 @@
   .portfolio-stack__heading {
     position: static;
     display: block;
+    opacity: 1;
+    transform: none;
+    will-change: auto;
   }
 
   .portfolio-stack__heading p {
@@ -1113,7 +1311,47 @@
     margin-top: 42px;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas: none;
+    grid-template-rows: none;
     gap: 28px 18px;
+  }
+
+  .portfolio-stack__group,
+  .portfolio-stack__group[data-group="agent"],
+  .portfolio-stack__group[data-group="knowledge"],
+  .portfolio-stack__group[data-group="interface"],
+  .portfolio-stack__group[data-group="language"],
+  .portfolio-stack__group[data-group="integration"],
+  .portfolio-stack__group:nth-child(1),
+  .portfolio-stack__group:nth-child(2),
+  .portfolio-stack__group:nth-child(3),
+  .portfolio-stack__group:nth-child(4),
+  .portfolio-stack__group:nth-child(5) {
+    grid-area: auto;
+    padding-top: 14px;
+    display: block;
+    opacity: 1;
+    border-top-color: rgba(139, 168, 193, 0.26);
+    transform: none;
+    will-change: auto;
+  }
+
+  .portfolio-stack__group[data-group="agent"] h3,
+  .portfolio-stack__group:nth-child(1) h3 {
+    max-width: none;
+    font-size: clamp(21px, 5vw, 28px);
+  }
+
+  .portfolio-stack__group[data-group="integration"] h3,
+  .portfolio-stack__group:nth-child(5) h3 {
+    margin-top: 8px;
+    color: #dce3e8;
+    font-size: clamp(18px, 4.5vw, 24px);
+  }
+
+  .portfolio-stack__group[data-group="integration"] > p,
+  .portfolio-stack__group:nth-child(5) > p {
+    color: #77899a;
   }
 
   .portfolio-stack__semantic-list {
@@ -1131,6 +1369,22 @@
     font: 500 13px/1.35 var(--ui);
     white-space: normal;
     list-style: none;
+  }
+
+  .portfolio-stack__group[data-group="agent"] .portfolio-stack__semantic-list,
+  .portfolio-stack__group[data-group="integration"] .portfolio-stack__semantic-list,
+  .portfolio-stack__group:nth-child(1) .portfolio-stack__semantic-list,
+  .portfolio-stack__group:nth-child(5) .portfolio-stack__semantic-list {
+    margin-top: 18px;
+    display: grid;
+    gap: 7px;
+    color: #aeb9c3;
+    font-size: 13px;
+  }
+
+  .portfolio-stack__group[data-group="integration"] .portfolio-stack__semantic-list li:first-child,
+  .portfolio-stack__group:nth-child(5) .portfolio-stack__semantic-list li:first-child {
+    color: var(--journey-acid);
   }
 }
 

@@ -8,7 +8,7 @@ category: "FRONTEND / 交互作品集"
 excerpt: "以暗色深空、实时三体与连续滚动叙事组织项目、文章和技术栈；这个网站不仅承载作品，也用前端动效展示我的设计与实现方式。"
 cover: "/assets/projects/maple-portfolio.png"
 status: "ACTIVE DEVELOPMENT / 持续打磨中"
-technologies: ["React", "Three.js", "Vite", "WebGL"]
+technologies: ["JavaScript", "React 19", "Three.js", "WebGL", "Three-body Physics", "Native Scroll"]
 linkUrl: "https://github.com/Maple127667/Maple127667.github.io"
 linkLabel: "GitHub 仓库"
 linkType: "github"

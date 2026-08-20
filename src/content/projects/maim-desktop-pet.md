@@ -8,7 +8,7 @@ category: "DESKTOP / LIVE2D"
 excerpt: "基于 PyQt、WebSocket 与 Live2D 构建的桌面角色项目，把实时消息、角色表现和桌面交互收进一个轻量的常驻界面。"
 cover: "/assets/projects/maim-desktop-pet.png"
 status: "ACTIVE DEVELOPMENT / 持续开发中"
-technologies: ["PyQt", "WebSocket", "Live2D", "Python"]
+technologies: ["Python", "PyQt5 UI", "qasync", "WebSocket", "Live2D / PyOpenGL", "Renderer Abstraction"]
 linkUrl: "https://github.com/Mai-with-u/MaiM-desktop-pet"
 linkLabel: "GitHub 仓库"
 linkType: "github"

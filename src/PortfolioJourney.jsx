@@ -58,10 +58,13 @@ function ProjectDestination({ project }) {
 export function PortfolioJourney({ active, projects, onOpenProject }) {
   const rootRef = useRef(null);
   const stackRef = useRef(null);
+  const stackGroupRefs = useRef(new Map());
   const projectPlaneRef = useRef(null);
   const projectRefs = useRef(new Map());
   const activeIndexRef = useRef(-1);
   const stackActiveRef = useRef(false);
+  const handoffActiveRef = useRef(false);
+  const ringLockedRef = useRef(false);
   const hoveredProjectRef = useRef(null);
   const scheduleMotionRef = useRef(() => {});
   const ringInteractionRef = useRef({
@@ -81,6 +84,7 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
   });
   const [activeIndex, setActiveIndex] = useState(-1);
   const [stackActive, setStackActive] = useState(false);
+  const [handoffActive, setHandoffActive] = useState(false);
   const [detailProjectId, setDetailProjectId] = useState(null);
   const [rotationPaused, setRotationPaused] = useState(false);
   const [staticMode, setStaticMode] = useState(() => window.matchMedia(
@@ -124,7 +128,19 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
       root.style.setProperty("--stack-opacity", staticMode ? "1" : "0");
       root.style.setProperty("--journey-backdrop-opacity", staticMode ? "1" : "0");
       root.style.setProperty("--journey-heading-opacity", staticMode ? "1" : "0");
+      root.style.setProperty("--handoff-opacity", "0");
+      root.style.setProperty("--handoff-scale", "0.96");
+      root.style.setProperty("--stack-heading-opacity", staticMode ? "1" : "0");
+      root.style.setProperty("--stack-heading-y", staticMode ? "0px" : "28px");
+      stackGroupRefs.current.forEach((group) => {
+        group.style.setProperty("--stack-group-opacity", staticMode ? "1" : "0");
+        group.style.setProperty("--stack-group-x", staticMode ? "0px" : "34px");
+        group.style.setProperty("--stack-group-y", staticMode ? "0px" : "18px");
+        group.style.setProperty("--stack-group-scale", staticMode ? "1" : "0.94");
+      });
       root.dataset.ringInteractive = "false";
+      root.dataset.handoffActive = "false";
+      ringLockedRef.current = false;
     };
 
     if (!active) {
@@ -132,8 +148,10 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
       scheduleMotionRef.current = () => {};
       activeIndexRef.current = -1;
       stackActiveRef.current = false;
+      handoffActiveRef.current = false;
       setActiveIndex(-1);
       setStackActive(false);
+      setHandoffActive(false);
       return undefined;
     }
 
@@ -159,8 +177,10 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
       ringInteraction.manualVelocity = 0;
       activeIndexRef.current = -1;
       stackActiveRef.current = true;
+      handoffActiveRef.current = false;
       setActiveIndex(-1);
       setStackActive(true);
+      setHandoffActive(false);
       let staticFrame = window.requestAnimationFrame(() => syncWaypointPositions(true));
       const syncStaticLayout = () => {
         window.cancelAnimationFrame(staticFrame);
@@ -194,38 +214,75 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
       previousFrameTime = frameTime;
       pointerX += (pointerTargetX - pointerX) * (1 - Math.exp(-frameDelta * 6));
       pointerY += (pointerTargetY - pointerY) * (1 - Math.exp(-frameDelta * 6));
-      const manualMotionActive = Math.abs(ringInteraction.manualVelocity) > 0.015;
-      const automaticRotationBlocked = ringInteraction.paused
-        || Boolean(hoveredProjectRef.current)
-        || ringInteraction.dragging
-        || manualMotionActive;
-      const targetRotationSpeed = automaticRotationBlocked ? 0 : 1;
-      ringInteraction.rotationSpeed += (targetRotationSpeed - ringInteraction.rotationSpeed)
-        * (1 - Math.exp(-frameDelta * 7));
 
       const viewportHeight = Math.max(1, window.innerHeight);
       const rect = track.getBoundingClientRect();
       const scrollUnits = clamp(-rect.top / viewportHeight, 0, metrics.totalUnits);
+      const handoffProgress = clamp(
+        (scrollUnits - metrics.handoffStart)
+          / Math.max(0.0001, metrics.handoffEnd - metrics.handoffStart),
+      );
+      const interactionWeight = 1 - smoothstep(0.02, 0.18, handoffProgress);
+      const ringExpansion = smoothstep(0.08, 0.48, handoffProgress);
+      const ringFade = 1 - smoothstep(0.44, 0.68, handoffProgress);
+      const handoffIsActive = handoffProgress > 0.001 && handoffProgress < 0.999;
+      const ringIsLocked = handoffProgress > 0.02;
+
+      if (ringIsLocked && !ringLockedRef.current) {
+        const pointerId = ringInteraction.pointerId;
+        if (pointerId !== null && projectPlaneRef.current?.hasPointerCapture?.(pointerId)) {
+          projectPlaneRef.current.releasePointerCapture(pointerId);
+        }
+        ringInteraction.pointerId = null;
+        ringInteraction.candidate = false;
+        ringInteraction.dragging = false;
+        ringInteraction.pendingDelta = 0;
+        ringInteraction.manualVelocity = 0;
+        projectPlaneRef.current?.removeAttribute("data-dragging");
+        hoveredProjectRef.current = null;
+        setDetailProjectId(null);
+        if (projectPlaneRef.current?.contains(document.activeElement)) {
+          document.activeElement.blur?.();
+        }
+      }
+      ringLockedRef.current = ringIsLocked;
+
+      const manualMotionActive = Math.abs(ringInteraction.manualVelocity) > 0.015;
+      const automaticRotationBlocked = ringInteraction.paused
+        || Boolean(hoveredProjectRef.current)
+        || ringInteraction.dragging
+        || manualMotionActive
+        || interactionWeight <= 0.001;
+      const targetRotationSpeed = automaticRotationBlocked ? 0 : interactionWeight;
+      ringInteraction.rotationSpeed += (targetRotationSpeed - ringInteraction.rotationSpeed)
+        * (1 - Math.exp(-frameDelta * 7));
+
       const heroExit = smoothstep(0.02, 0.86, scrollUnits);
       const heroCopyFade = 1 - smoothstep(0.3, 0.76, scrollUnits);
       const projectEntrance = smoothstep(0.18, PROJECT_FIRST_CENTER_UNITS, scrollUnits);
-      const projectExit = smoothstep(metrics.ringExitStart, metrics.ringExitEnd, scrollUnits);
-      const projectVisibility = projectEntrance * (1 - projectExit);
-      const stackReveal = smoothstep(metrics.ringExitStart + 0.08, metrics.ringExitEnd, scrollUnits);
-      const stackIsActive = stackReveal >= 0.55;
+      const projectVisibility = projectEntrance * ringFade;
+      const projectPlaneVisibility = projectEntrance
+        * (1 - smoothstep(0.67, 0.72, handoffProgress));
+      const bridgeOpacity = smoothstep(0.3, 0.4, handoffProgress)
+        * (1 - smoothstep(0.54, 0.66, handoffProgress));
+      const bridgeScaleProgress = smoothstep(0.3, 0.66, handoffProgress);
+      const stackReveal = smoothstep(0.48, 0.62, handoffProgress);
+      const stackHeadingReveal = smoothstep(0.5, 0.74, handoffProgress);
+      const stackIsActive = handoffProgress > 0.9;
       const stageIsVisible = rect.bottom > 0 && rect.top < viewportHeight;
 
       if (ringInteraction.pendingDelta !== 0) {
-        ringInteraction.rotationPosition += ringInteraction.pendingDelta;
+        ringInteraction.rotationPosition += ringInteraction.pendingDelta * interactionWeight;
         ringInteraction.pendingDelta = 0;
       }
       if (!ringInteraction.dragging && Math.abs(ringInteraction.manualVelocity) > 0.001) {
-        ringInteraction.rotationPosition += ringInteraction.manualVelocity * frameDelta;
-        ringInteraction.manualVelocity *= Math.exp(-frameDelta * 5.2);
+        ringInteraction.rotationPosition += ringInteraction.manualVelocity * frameDelta * interactionWeight;
+        ringInteraction.manualVelocity *= Math.exp(-frameDelta * mix(5.2, 9.2, 1 - interactionWeight));
         if (Math.abs(ringInteraction.manualVelocity) < 0.004) ringInteraction.manualVelocity = 0;
       }
 
-      const autoCanAdvance = projectVisibility > 0.02
+      const autoCanAdvance = projectEntrance > 0.02
+        && interactionWeight > 0.001
         && stageIsVisible
         && !document.hidden
         && !automaticRotationBlocked;
@@ -248,16 +305,37 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
         0.22,
         smoothstep(0.2, PROJECT_FIRST_CENTER_UNITS + 0.12, scrollUnits),
       ).toFixed(4));
-      root.style.setProperty("--project-plane-y", `${mix(12, -14, projectExit).toFixed(3)}vh`);
-      root.style.setProperty("--project-plane-opacity", projectVisibility.toFixed(4));
+      root.style.setProperty("--project-plane-y", "0vh");
+      root.style.setProperty("--project-plane-opacity", projectPlaneVisibility.toFixed(4));
       root.style.setProperty("--stack-opacity", stackReveal.toFixed(4));
       root.style.setProperty("--journey-backdrop-opacity", Math.max(projectEntrance * 0.94, stackReveal).toFixed(4));
-      root.style.setProperty("--journey-heading-opacity", projectVisibility.toFixed(4));
+      root.style.setProperty("--journey-heading-opacity", (
+        projectEntrance * (1 - smoothstep(0.08, 0.3, handoffProgress))
+      ).toFixed(4));
+      root.style.setProperty("--handoff-opacity", bridgeOpacity.toFixed(4));
+      root.style.setProperty("--handoff-scale", mix(0.94, 1.035, bridgeScaleProgress).toFixed(4));
+      root.style.setProperty("--stack-heading-opacity", stackHeadingReveal.toFixed(4));
+      root.style.setProperty("--stack-heading-y", `${mix(32, 0, stackHeadingReveal).toFixed(3)}px`);
+      root.dataset.handoffActive = handoffIsActive ? "true" : "false";
 
-      const nextActiveIndex = projectVisibility >= 0.42 && !stackIsActive
+      projectTechnologyGroups.forEach((group, groupIndex) => {
+        const groupElement = stackGroupRefs.current.get(group.id);
+        if (!groupElement) return;
+        const groupReveal = smoothstep(
+          0.54 + groupIndex * 0.06,
+          0.7 + groupIndex * 0.05,
+          handoffProgress,
+        );
+        groupElement.style.setProperty("--stack-group-opacity", groupReveal.toFixed(4));
+        groupElement.style.setProperty("--stack-group-x", `${mix(34, 0, groupReveal).toFixed(3)}px`);
+        groupElement.style.setProperty("--stack-group-y", `${mix(18, 0, groupReveal).toFixed(3)}px`);
+        groupElement.style.setProperty("--stack-group-scale", mix(0.94, 1, groupReveal).toFixed(4));
+      });
+
+      const nextActiveIndex = projectEntrance >= 0.42 && !stackIsActive
         ? Math.round(rotationPosition) % Math.max(1, projects.length)
         : -1;
-      root.dataset.ringInteractive = nextActiveIndex >= 0 ? "true" : "false";
+      root.dataset.ringInteractive = nextActiveIndex >= 0 && !ringIsLocked ? "true" : "false";
 
       projects.forEach((project, projectIndex) => {
         const slide = projectRefs.current.get(project.id);
@@ -266,11 +344,13 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
           projectIndex,
           rotationPosition,
           projects.length,
-          pointerX,
-          pointerY,
+          pointerX * interactionWeight,
+          pointerY * interactionWeight,
         );
-        slide.style.setProperty("--project-x", `${pose.x.toFixed(3)}vw`);
-        slide.style.setProperty("--project-y", `${(pose.y + mix(18, 0, projectEntrance)).toFixed(3)}vh`);
+        slide.style.setProperty("--project-x", `${(pose.x * mix(1, 1.75, ringExpansion)).toFixed(3)}vw`);
+        slide.style.setProperty("--project-y", `${(
+          pose.y * mix(1, 1.55, ringExpansion) + mix(18, 0, projectEntrance)
+        ).toFixed(3)}vh`);
         slide.style.setProperty("--project-opacity", (projectVisibility * pose.opacity).toFixed(4));
         slide.style.setProperty("--project-scale", pose.scale.toFixed(4));
         slide.style.setProperty("--project-rotate", `${pose.rotate.toFixed(3)}deg`);
@@ -291,6 +371,10 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
       if (stackIsActive !== stackActiveRef.current) {
         stackActiveRef.current = stackIsActive;
         setStackActive(stackIsActive);
+      }
+      if (handoffIsActive !== handoffActiveRef.current) {
+        handoffActiveRef.current = handoffIsActive;
+        setHandoffActive(handoffIsActive);
       }
 
       const pointerIsSettling = Math.abs(pointerTargetX - pointerX) > 0.001
@@ -356,7 +440,7 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
   }, [active, metrics, projects, staticMode]);
 
   const showProjectDetail = (projectId) => {
-    if (ringInteractionRef.current.dragging) return;
+    if (ringInteractionRef.current.dragging || ringLockedRef.current || stackActiveRef.current) return;
     hoveredProjectRef.current = projectId;
     setDetailProjectId(projectId);
     scheduleMotionRef.current();
@@ -369,7 +453,9 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
     scheduleMotionRef.current();
   };
   const updateCardPointer = (event) => {
-    if (event.pointerType === "touch" || ringInteractionRef.current.dragging) return;
+    if (event.pointerType === "touch"
+      || ringInteractionRef.current.dragging
+      || ringLockedRef.current) return;
     const card = event.currentTarget;
     const rect = card.getBoundingClientRect();
     const localX = clamp((event.clientX - rect.left) / Math.max(1, rect.width));
@@ -379,6 +465,7 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
   };
 
   const toggleRotation = () => {
+    if (ringLockedRef.current || stackActiveRef.current) return;
     const interaction = ringInteractionRef.current;
     const nextPaused = !interaction.paused;
     interaction.paused = nextPaused;
@@ -391,7 +478,10 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
   };
 
   const beginRingDrag = (event) => {
-    if (staticMode || stackActive || (event.pointerType === "mouse" && event.button !== 0)) return;
+    if (staticMode
+      || ringLockedRef.current
+      || stackActiveRef.current
+      || (event.pointerType === "mouse" && event.button !== 0)) return;
     if (event.target.closest("[data-ring-control], .portfolio-project__external")) return;
     const interaction = ringInteractionRef.current;
     interaction.pointerId = event.pointerId;
@@ -473,12 +563,14 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
     aria-label="项目与技术栈"
     data-static={staticMode ? "true" : "false"}
     data-stack-active={stackActive || staticMode ? "true" : "false"}
+    data-handoff-active={handoffActive ? "true" : "false"}
   >
     <div className="portfolio-journey__backdrop" aria-hidden="true" />
     <div
       ref={projectPlaneRef}
       className="portfolio-journey__project-plane"
       aria-label="可拖拽旋转的项目环"
+      inert={!staticMode && (handoffActive || stackActive) ? true : undefined}
       onPointerDown={beginRingDrag}
       onPointerMove={moveRingDrag}
       onPointerUp={(event) => endRingDrag(event)}
@@ -496,6 +588,7 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
             data-paused={rotationPaused ? "true" : "false"}
             aria-pressed={rotationPaused}
             aria-label={rotationPaused ? "继续项目环自动旋转" : "暂停项目环自动旋转"}
+            tabIndex={!staticMode && (handoffActive || stackActive) ? -1 : 0}
             onClick={toggleRotation}
           >
             <i aria-hidden="true" />
@@ -515,7 +608,8 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
       {projects.map((project, projectIndex) => {
         const isCurrent = staticMode || activeIndex === projectIndex;
         const isDetailed = staticMode || detailProjectId === project.id;
-        const cardsAreInteractive = staticMode || (activeIndex >= 0 && !stackActive);
+        const cardsAreInteractive = staticMode
+          || (activeIndex >= 0 && !stackActive && !handoffActive);
         return <article
           ref={(node) => {
             if (node) projectRefs.current.set(project.id, node);
@@ -586,6 +680,16 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
       })}
     </div>
 
+    <div className="portfolio-journey__handoff" aria-hidden="true">
+      <i className="portfolio-journey__handoff-mark" />
+      <p className="portfolio-journey__handoff-from">
+        FROM {String(projects.length).padStart(2, "0")} PROJECTS
+      </p>
+      <p className="portfolio-journey__handoff-into">
+        INTO ONE CAPABILITY SYSTEM
+      </p>
+    </div>
+
     <section
       ref={stackRef}
       className="portfolio-stack"
@@ -600,7 +704,15 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
       <div className="portfolio-stack__groups">
         {projectTechnologyGroups.map((group) => {
           const technologies = uniqueTechnologies.filter((technology) => technology.groupId === group.id);
-          return <article className="portfolio-stack__group" key={group.id}>
+          return <article
+            ref={(node) => {
+              if (node) stackGroupRefs.current.set(group.id, node);
+              else stackGroupRefs.current.delete(group.id);
+            }}
+            className="portfolio-stack__group"
+            data-group={group.id}
+            key={group.id}
+          >
             <p>{group.eyebrow}</p>
             <h3>{group.title}</h3>
             <ul className="portfolio-stack__semantic-list">

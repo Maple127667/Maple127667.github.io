@@ -7,7 +7,7 @@ category: "AI SYSTEM / 检索工程"
 excerpt: "从接近三分钟的 Agent 检索出发，参考 23 篇论文，到20s的检索，用固定测试集和消融实验构建一套渐进式、可引用的个人 Search Agent。"
 cover: "/assets/projects/search-agent.webp"
 status: "ACTIVE DEVELOPMENT / 快速迭代中"
-technologies: ["Python", "FastAPI", "Hybrid Retrieval", "SQLite FTS5", "Evidence Trace", "Multi-Agent"]
+technologies: ["Python", "Modular Monolith", "SQLite FTS5", "Hybrid Retrieval", "Weighted RRF", "ClaimGate"]
 align: "right"
 linkUrl: "https://github.com/Maple127667/search_agent"
 linkLabel: "GitHub 仓库"

@@ -8,8 +8,8 @@ category: "OPEN SOURCE / 协作工程"
 excerpt: "从个人开发走进大型开源协作：规范让贡献可以被理解与追溯，讨论让局部判断进入更大的视野，而热爱让创造力在人与人之间持续流动。"
 cover: "/assets/projects/maibot-character.png"
 status: "CONTRIBUTING / 持续协作中"
-technologies: ["Python", "Plugin Architecture", "Pytest", "GitHub Actions", "Documentation", "Open Source"]
-linkUrl: "https://github.com/Maple127667/MaiBot"
+technologies: ["Python", "TypeScript", "LLM Agent", "React Dashboard", "IPC Plugin Runtime", "A_Memorix"]
+linkUrl: "https://github.com/Mai-with-u/MaiBot"
 linkLabel: "GitHub 仓库"
 linkType: "github"
 align: "left"

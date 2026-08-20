@@ -1,40 +1,54 @@
 export const projectTechnologyGroups = [
-  { id: "intelligence", eyebrow: "AI / BEHAVIOR", title: "智能与行为" },
-  { id: "retrieval", eyebrow: "SEARCH / STATE", title: "检索与状态" },
-  { id: "runtime", eyebrow: "RUNTIME / MESSAGE", title: "应用与消息" },
-  { id: "interface", eyebrow: "INTERFACE / VISUAL", title: "界面与视觉" },
-  { id: "delivery", eyebrow: "DELIVERY / DX", title: "工程与协作" },
+  { id: "agent", eyebrow: "AGENT / INTELLIGENCE", title: "Agent 与智能系统" },
+  { id: "knowledge", eyebrow: "SEARCH / MEMORY", title: "检索、数据与记忆" },
+  { id: "interface", eyebrow: "INTERFACE / RENDERING", title: "界面、交互与渲染" },
+  { id: "language", eyebrow: "LANGUAGE / RUNTIME", title: "语言与运行时" },
+  { id: "integration", eyebrow: "SYSTEM / INTEGRATION", title: "系统工程与集成" },
 ];
 
 const technologyGroupByLabel = new Map([
-  ["Evidence Trace", "intelligence"],
-  ["Multi-Agent", "intelligence"],
-  ["Chatbot Runtime", "intelligence"],
-  ["Plugin Architecture", "intelligence"],
-  ["Hybrid Retrieval", "retrieval"],
-  ["SQLite FTS5", "retrieval"],
-  ["Persistent State", "retrieval"],
-  ["Python", "runtime"],
-  ["FastAPI", "runtime"],
-  ["Message Routing", "runtime"],
-  ["Event Scheduling", "runtime"],
-  ["Bot API", "runtime"],
-  ["WebSocket", "runtime"],
+  ["LLM Agent", "agent"],
+  ["ClaimGate", "agent"],
+  ["A_Memorix", "agent"],
+  ["NoneBot2", "agent"],
+  ["SQLite FTS5", "knowledge"],
+  ["Hybrid Retrieval", "knowledge"],
+  ["Weighted RRF", "knowledge"],
+  ["Python", "language"],
+  ["JavaScript", "language"],
+  ["TypeScript", "language"],
+  ["React Dashboard", "interface"],
+  ["React 19", "interface"],
   ["React", "interface"],
   ["Three.js", "interface"],
   ["WebGL", "interface"],
-  ["PyQt", "interface"],
-  ["Live2D", "interface"],
-  ["Operations", "delivery"],
-  ["Vite", "delivery"],
-  ["Pytest", "delivery"],
-  ["GitHub Actions", "delivery"],
-  ["Documentation", "delivery"],
-  ["Open Source", "delivery"],
+  ["PyQt5 UI", "interface"],
+  ["Live2D / PyOpenGL", "interface"],
+  ["Three-body Physics", "interface"],
+  ["Native Scroll", "interface"],
+  ["SealDice", "integration"],
+  ["LLoneBot", "integration"],
+  ["qasync", "integration"],
+  ["WebSocket", "integration"],
+  ["Modular Monolith", "integration"],
+  ["Split Deployment", "integration"],
+  ["IPC Plugin Runtime", "integration"],
+  ["Renderer Abstraction", "integration"],
 ]);
 
+const technologyOrderByLabel = new Map([
+  ["LLM Agent", 0],
+  ["ClaimGate", 1],
+  ["A_Memorix", 2],
+  ["NoneBot2", 3],
+]);
+
+const technologyGroupOrderById = new Map(
+  projectTechnologyGroups.map((group, index) => [group.id, index]),
+);
+
 export function getTechnologyGroupId(label) {
-  return technologyGroupByLabel.get(label) ?? "delivery";
+  return technologyGroupByLabel.get(label) ?? "integration";
 }
 
 export function collectProjectTechnologies(projects) {
@@ -56,5 +70,14 @@ export function collectProjectTechnologies(projects) {
     });
   });
 
-  return [...collected.values()];
+  return [...collected.values()].sort((left, right) => {
+    const groupOrder = (technologyGroupOrderById.get(left.groupId) ?? Number.MAX_SAFE_INTEGER)
+      - (technologyGroupOrderById.get(right.groupId) ?? Number.MAX_SAFE_INTEGER);
+    if (groupOrder !== 0) return groupOrder;
+    const leftOrder = technologyOrderByLabel.get(left.label) ?? Number.MAX_SAFE_INTEGER;
+    const rightOrder = technologyOrderByLabel.get(right.label) ?? Number.MAX_SAFE_INTEGER;
+    return leftOrder - rightOrder
+      || left.firstProjectIndex - right.firstProjectIndex
+      || left.firstTechnologyIndex - right.firstTechnologyIndex;
+  });
 }
