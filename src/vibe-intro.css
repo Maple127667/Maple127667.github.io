@@ -2089,12 +2089,21 @@
 }
 
 .opening-stage[data-intro-active="true"] .primary-button {
+  --primary-button-accent: currentColor;
   transition:
     color 260ms ease,
     opacity 260ms ease,
     background-color 260ms ease,
     border-color 260ms ease,
     transform 320ms cubic-bezier(0.2, 0.72, 0.2, 1);
+}
+
+.opening-stage[data-intro-active="true"]:is(
+  [data-preview="good-copy-refined"],
+  [data-preview="good-three"],
+  [data-preview="ready"]
+) .primary-button {
+  --primary-button-accent: var(--acid);
 }
 
 .opening-stage[data-intro-active="true"] .hero__visual {

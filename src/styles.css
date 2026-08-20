@@ -37,13 +37,24 @@ button { font: inherit; }
 .site-header { position: absolute; z-index: 20; top: 0; left: 0; width: 100%; height: 88px; padding: 0 var(--page); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid transparent; }
 .wordmark { display: inline-flex; align-items: center; gap: 11px; font: 15px/1 var(--ui); letter-spacing: 0.12em; }
 .wordmark span { width: 6px; height: 6px; border-radius: 50%; background: var(--acid); box-shadow: 0 0 14px rgba(200, 255, 35, 0.78); }
-.site-nav { display: flex; align-items: center; gap: clamp(24px, 3vw, 52px); }
-.site-nav a { position: relative; padding: 10px 0; color: #cbd2d9; font: 500 14px/1.35 var(--ui); letter-spacing: 0; }
-.site-nav a::after { content: ""; position: absolute; left: 0; right: 0; bottom: 3px; height: 1px; background: var(--signal); transform: scaleX(0); transform-origin: right; transition: transform 220ms ease; }
-.site-nav a:hover::after { transform: scaleX(1); transform-origin: left; }
-.site-nav__replay { min-height: 40px; padding: 0 0 0 clamp(18px, 2vw, 30px); color: #87939f; border: 0; border-left: 1px solid var(--line); background: transparent; font: 500 14px/1.35 var(--ui); cursor: pointer; transition: color 180ms ease; }
-.site-nav__replay:hover { color: #dce3e8; }
-.menu-toggle { display: none; border: 0; background: transparent; padding: 8px; }
+.site-nav { height: 44px; display: flex; align-items: stretch; gap: 0; border-bottom: 1px solid rgba(138, 168, 191, 0.2); background: transparent; }
+.site-nav a { position: relative; min-width: 76px; min-height: 43px; padding: 0 clamp(13px, 1.25vw, 18px); display: inline-flex; align-items: center; justify-content: center; gap: 9px; color: #98a4b0; border: 0; font: 560 14px/1 var(--ui); letter-spacing: 0; transition: color 180ms ease; }
+.site-nav__index { color: #596979; font: 600 12px/1 var(--ui); letter-spacing: 0.06em; transition: color 180ms ease; }
+.site-nav__label { white-space: nowrap; }
+.site-nav a::after { content: ""; position: absolute; left: 14px; bottom: -1px; width: 13px; height: 2px; background: var(--acid); transform: scaleX(0); transform-origin: right; transition: transform 220ms ease; }
+.site-nav a:hover,
+.site-nav a:focus-visible,
+.site-nav a.is-active { color: #edf1f4; }
+.site-nav a:hover .site-nav__index,
+.site-nav a:focus-visible .site-nav__index,
+.site-nav a.is-active .site-nav__index { color: #8fa2b2; }
+.site-nav a:hover::after,
+.site-nav a:focus-visible::after,
+.site-nav a.is-active::after { transform: scaleX(1); transform-origin: left; }
+.site-nav__replay { min-height: 43px; padding: 0 clamp(14px, 1.8vw, 24px); color: #788692; border: 0; background: transparent; font: 500 14px/1.35 var(--ui); cursor: pointer; transition: color 180ms ease; }
+.site-nav__replay:hover,
+.site-nav__replay:focus-visible { color: #dce3e8; }
+.menu-toggle { display: none; color: #cbd4dc; border: 1px solid var(--line); background: rgba(4, 8, 15, 0.56); padding: 8px; }
 .scroll-meter { position: fixed; z-index: 21; top: 0; left: 0; width: calc(var(--scroll-progress) * 100%); height: 2px; background: var(--signal); pointer-events: none; }
 
 .hero { position: relative; background: radial-gradient(circle at 76% 44%, rgba(54, 78, 106, 0.11), transparent 38%), var(--surface); min-height: 820px; height: 100svh; max-height: 980px; padding: 120px var(--page) 56px; display: grid; grid-template-columns: minmax(430px, 0.82fr) minmax(540px, 1.18fr); gap: 24px; overflow: hidden; border-bottom: 1px solid var(--line); }
@@ -70,8 +81,11 @@ button { font: inherit; }
 .availability { margin: 23px 0 0; display: flex; align-items: center; gap: 10px; color: var(--acid); font: 14px/1 var(--ui); letter-spacing: 0.08em; }
 .availability span { width: 6px; height: 6px; border-radius: 50%; background: var(--acid); box-shadow: 0 0 12px rgba(200, 255, 35, 0.76); animation: pulse 1.8s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: 0.42; transform: scale(0.78); } }
-.primary-button { margin-top: 27px; min-width: 152px; height: 54px; padding: 0 24px; display: inline-flex; align-items: center; justify-content: space-between; gap: 24px; background: #e5e9ed; color: #080c12; border: 1px solid #e5e9ed; font-size: 14px; font-weight: 700; transition: background 180ms ease, transform 180ms ease; }
-.primary-button:hover { background: #ffffff; transform: translateY(-3px); }
+.primary-button { --primary-button-accent: var(--acid); position: relative; margin-top: 27px; min-width: 216px; height: 58px; padding: 0 5px 0 0; display: inline-flex; align-items: center; justify-content: space-between; gap: 30px; overflow: hidden; color: #e7ecf0; border: 0; border-bottom: 1px solid rgba(138, 168, 191, 0.42); background: transparent; font-size: 16px; font-weight: 520; transition: color 180ms ease, border-color 180ms ease; }
+.primary-button::before { content: none; }
+.primary-button svg { width: 31px; height: 31px; margin-left: auto; padding: 5px; color: var(--primary-button-accent); border: 0; transition: color 180ms ease, transform 180ms ease; }
+.primary-button:hover { color: #ffffff; border-bottom-color: rgba(200, 255, 35, 0.52); }
+.primary-button:hover svg { transform: translate3d(0, 3px, 0); }
 .location { margin: auto 0 0; color: #7b8794; font: 14px/1.7 var(--ui); letter-spacing: 0.08em; }
 .hero__visual { position: absolute; z-index: 1; inset: 0; min-width: 0; min-height: 0; }
 .asteroid-stage { position: absolute; inset: 0; }
@@ -381,10 +395,12 @@ button { font: inherit; }
 @media (max-width: 760px) {
   .site-header { height: 70px; position: fixed; background: rgba(4, 8, 17, 0.94); border-bottom-color: var(--line); backdrop-filter: blur(14px); }
   .menu-toggle { display: grid; place-items: center; }
-  .site-nav { position: fixed; inset: 70px 0 auto; padding: 20px var(--page) 30px; flex-direction: column; align-items: stretch; gap: 0; background: #03060c; border-bottom: 1px solid var(--line); transform: translateY(-130%); visibility: hidden; transition: transform 240ms ease, visibility 240ms ease; }
+  .site-nav { position: fixed; inset: 70px 0 auto; height: auto; padding: 12px var(--page) 24px; flex-direction: column; align-items: stretch; gap: 0; background: #03060c; border-top: 0; border-bottom: 1px solid var(--line); transform: translateY(-130%); visibility: hidden; transition: transform 240ms ease, visibility 240ms ease; }
   .site-nav.is-open { transform: translateY(0); visibility: visible; }
-  .site-nav a { padding: 18px 0; font-size: 14px; border-bottom: 1px solid var(--line); }
-  .site-nav__replay { min-height: 52px; padding: 0; text-align: left; border-left: 0; border-bottom: 1px solid var(--line); }
+  .site-nav a { min-width: 0; min-height: 54px; padding: 0; display: grid; grid-template-columns: 40px minmax(0, 1fr); justify-content: stretch; gap: 10px; border-inline: 0; border-bottom: 1px solid var(--line); }
+  .site-nav__index { font-size: 13px; }
+  .site-nav a::after { left: 50px; bottom: -1px; width: 18px; }
+  .site-nav__replay { min-height: 52px; padding: 0 0 0 50px; text-align: left; border-right: 0; border-bottom: 1px solid var(--line); }
   .hero { min-height: 0; padding-top: 120px; padding-bottom: 0; grid-template-columns: 1fr; gap: 18px; }
   .hero::after, .hero-rail, .scene-label:not(.seed-control) { display: none; }
   .seed-control { top: 10%; right: 8%; opacity: 0.88; }
@@ -451,7 +467,7 @@ button { font: inherit; }
   .hero.snap-panel .hero__role-en { font-size: clamp(25px, 8vw, 34px); }
   .hero.snap-panel .hero__statement { margin-top: 18px; font-size: 15px; line-height: 1.55; }
   .hero.snap-panel .availability { margin-top: 18px; }
-  .hero.snap-panel .primary-button { height: 48px; margin-top: 20px; }
+  .hero.snap-panel .primary-button { min-width: 200px; height: 52px; margin-top: 20px; font-size: 15px; }
   .hero.snap-panel .location { display: none; }
   .hero.snap-panel .hero__visual { position: absolute; inset: 0; min-height: 0; opacity: 0.46; }
   .project-panel > .section-heading { flex-basis: 70px; }
@@ -709,7 +725,7 @@ button { font: inherit; }
   body { overflow-x: hidden; }
   #projects, #notes, #about, #contact { scroll-margin-top: 0; }
   .menu-toggle { width: 44px; height: 44px; margin-right: -8px; }
-  .site-nav a { min-height: 52px; display: flex; align-items: center; }
+  .site-nav a { min-height: 54px; display: grid; align-items: center; }
 
   .project-panel { padding-top: 70px; }
   .project-panel > .section-heading { flex-basis: 64px; min-height: 64px; }

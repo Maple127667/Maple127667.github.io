@@ -198,6 +198,10 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
       root.style.setProperty("--journey-heading-opacity", staticMode ? "1" : "0");
       root.style.setProperty("--handoff-opacity", "0");
       root.style.setProperty("--handoff-scale", "0.96");
+      root.style.setProperty("--handoff-plane-x", "0px");
+      root.style.setProperty("--handoff-plane-y", "0px");
+      root.style.setProperty("--handoff-plane-rotate-x", "0deg");
+      root.style.setProperty("--handoff-plane-rotate-y", "0deg");
       root.style.setProperty("--stack-heading-opacity", staticMode ? "1" : "0");
       root.style.setProperty("--stack-heading-y", staticMode ? "0px" : "28px");
       stackGroupRefs.current.forEach((group) => {
@@ -364,6 +368,9 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
       const bridgeOpacity = smoothstep(0.3, 0.4, handoffProgress)
         * (1 - smoothstep(0.68, 0.8, handoffProgress));
       const bridgeScaleProgress = smoothstep(0.3, 0.66, handoffProgress);
+      const sharedPlaneWeight = smoothstep(0.2, 0.32, handoffProgress) * ringFade;
+      const sharedPlaneX = pointerX * sharedPlaneWeight;
+      const sharedPlaneY = pointerY * sharedPlaneWeight;
       const stackReveal = smoothstep(0.78, 0.88, handoffProgress);
       const stackHeadingReveal = smoothstep(0.8, 0.94, handoffProgress);
       const stackIsActive = handoffProgress > 0.98;
@@ -449,6 +456,10 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
       ).toFixed(4));
       root.style.setProperty("--handoff-opacity", bridgeOpacity.toFixed(4));
       root.style.setProperty("--handoff-scale", mix(0.94, 1.035, bridgeScaleProgress).toFixed(4));
+      root.style.setProperty("--handoff-plane-x", `${(sharedPlaneX * 6).toFixed(3)}px`);
+      root.style.setProperty("--handoff-plane-y", `${(sharedPlaneY * 4).toFixed(3)}px`);
+      root.style.setProperty("--handoff-plane-rotate-x", `${(-sharedPlaneY * 0.65).toFixed(3)}deg`);
+      root.style.setProperty("--handoff-plane-rotate-y", `${(sharedPlaneX * 0.8).toFixed(3)}deg`);
       root.style.setProperty("--stack-heading-opacity", stackHeadingPresence.toFixed(4));
       root.style.setProperty("--stack-heading-y", `${mix(32, 0, stackHeadingPresence).toFixed(3)}px`);
       root.dataset.handoffActive = handoffIsActive ? "true" : "false";
@@ -730,7 +741,13 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
       <div className="portfolio-journey__drag-surface" aria-hidden="true" />
       <header className="portfolio-journey__heading">
         <div className="portfolio-journey__system-controls">
-          <p><span aria-hidden="true" /> PROJECT DECK</p>
+          <p className="portfolio-journey__register">
+            <strong>我的项目</strong>
+            <span className="portfolio-journey__register-count">
+              {String(Math.max(0, activeIndex) + 1).padStart(2, "0")}
+              &nbsp;/&nbsp;{String(projects.length).padStart(2, "0")}
+            </span>
+          </p>
           <button
             className="portfolio-journey__rotation-toggle"
             type="button"
@@ -744,14 +761,7 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
             <i aria-hidden="true" />
             <span>AUTO / {rotationPaused ? "OFF" : "ON"}</span>
           </button>
-          <span className="portfolio-journey__drag-hint">DRAG / ROTATE</span>
-        </div>
-        <div className="portfolio-journey__heading-meta">
-          <strong>我的项目</strong>
-          <span>
-            {String(Math.max(0, activeIndex) + 1).padStart(2, "0")}
-            &nbsp;/&nbsp;{String(projects.length).padStart(2, "0")}
-          </span>
+          <span className="portfolio-journey__drag-hint">拖动以旋转</span>
         </div>
       </header>
 
@@ -831,12 +841,11 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
     </div>
 
     <div className="portfolio-journey__handoff" aria-hidden="true">
-      <i className="portfolio-journey__handoff-mark" />
       <p className="portfolio-journey__handoff-from">
-        FROM {String(projects.length).padStart(2, "0")} PROJECTS
+        从想法到项目的路上
       </p>
       <p className="portfolio-journey__handoff-into">
-        INTO ONE CAPABILITY SYSTEM
+        技术让<span className="portfolio-journey__handoff-accent">创意</span>变成<span className="portfolio-journey__handoff-accent">现实</span>
       </p>
     </div>
 

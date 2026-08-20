@@ -36,10 +36,10 @@ const HARD_RELOAD_INTENT_KEY = "maple-vibe-hard-reload-intent";
 const HARD_RELOAD_INTENT_TTL_MS = 15000;
 
 const sectionRailItems = [
-  { id: "top", number: "01", label: "首页" },
-  { id: "projects", number: "02", label: "作品" },
-  { id: "stack", number: "03", label: "技术栈" },
-  { id: "contact", number: "04", label: "联系" },
+  { id: "top", number: "01", label: "首页", navLabel: "关于我" },
+  { id: "projects", number: "02", label: "作品", navLabel: "作品" },
+  { id: "stack", number: "03", label: "技术栈", navLabel: "技术栈" },
+  { id: "contact", number: "04", label: "联系", navLabel: "联系" },
 ];
 const portfolioJourneyMetrics = getPortfolioJourneyMetrics(projects.length);
 
@@ -211,7 +211,7 @@ function DeferredAsteroidScene({ forceFallback, onProgress, onReady }) {
   </AsteroidSceneBoundary>;
 }
 
-function SectionRail() {
+function useActiveSection() {
   const [activeSection, setActiveSection] = useState("top");
 
   useEffect(() => {
@@ -238,31 +238,56 @@ function SectionRail() {
     };
   }, []);
 
+  return activeSection;
+}
+
+function SectionRail({ activeSection }) {
   return <nav className="hero-rail" aria-label="页面进度">
     {sectionRailItems.map((item) => <a key={item.id} href={`#${item.id}`} onClick={handlePageAnchorClick} aria-label={`${item.number} ${item.label}`} aria-current={activeSection === item.id ? "location" : undefined} className={activeSection === item.id ? "is-active" : ""}>{item.number}</a>)}
     <ArrowDown size={17} aria-hidden="true" />
   </nav>;
 }
 
-function Header({ onReplay }) {
+function Header({ activeSection, onReplay }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuButtonRef = useRef(null);
   const close = () => setMenuOpen(false);
   const navigate = (event) => {
     close();
     handlePageAnchorClick(event);
   };
+
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const handleEscape = (event) => {
+      if (event.key !== "Escape") return;
+      setMenuOpen(false);
+      menuButtonRef.current?.focus();
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [menuOpen]);
+
   return <header className="site-header">
     <a className="wordmark" href="#top" onClick={handlePageAnchorClick} aria-label="Maple 首页">MAPLE <span aria-hidden="true" /></a>
-    <button className="menu-toggle" type="button" onClick={() => setMenuOpen((value) => !value)} aria-expanded={menuOpen} aria-controls="site-navigation" aria-label={menuOpen ? "关闭菜单" : "打开菜单"}>{menuOpen ? <X size={22} /> : <List size={22} />}</button>
-    <nav id="site-navigation" className={`site-nav${menuOpen ? " is-open" : ""}`} aria-label="主导航"><a href="#top" onClick={navigate}>关于我</a><a href="#projects" onClick={navigate}>作品</a><a href="#stack" onClick={navigate}>技术栈</a><a href="#contact" onClick={navigate}>联系</a>{onReplay && <button className="site-nav__replay" type="button" onClick={() => { close(); onReplay(); }}>重播构建</button>}</nav>
+    <button ref={menuButtonRef} className="menu-toggle" type="button" onClick={() => setMenuOpen((value) => !value)} aria-expanded={menuOpen} aria-controls="site-navigation" aria-label={menuOpen ? "关闭菜单" : "打开菜单"}>{menuOpen ? <X size={22} /> : <List size={22} />}</button>
+    <nav id="site-navigation" className={`site-nav${menuOpen ? " is-open" : ""}`} aria-label="主导航">
+      {sectionRailItems.map((item) => <a key={item.id} href={`#${item.id}`} onClick={navigate} aria-current={activeSection === item.id ? "location" : undefined} className={activeSection === item.id ? "is-active" : ""}><span className="site-nav__index" aria-hidden="true">{item.number}</span><span className="site-nav__label">{item.navLabel}</span></a>)}
+      {onReplay && <button className="site-nav__replay" type="button" onClick={() => { close(); onReplay(); }}>重播构建</button>}
+    </nav>
     <span className="scroll-meter" aria-hidden="true" />
   </header>;
+}
+
+function PageChrome({ onReplay }) {
+  const activeSection = useActiveSection();
+  return <><Header activeSection={activeSection} onReplay={onReplay} /><SectionRail activeSection={activeSection} /></>;
 }
 
 function HeroSection({ forceSceneFallback, onSceneProgress, onSceneReady }) {
   return <section className="hero snap-panel" aria-labelledby="hero-title">
     <StarField />
-    <div className="hero__copy"><p className="eyebrow">{profile.name.toUpperCase()} / PORTFOLIO + NOTES 2026</p><h1 id="hero-title"><span className="hero__name">{profile.name.toUpperCase()} <em>/</em></span><span className="hero__role-lockup"><span className="hero__role-en">CREATIVE DEVELOPER</span><span className="hero__role-cn">创意开发者<br />AI 应用与 Agent 系统</span></span></h1><p className="hero__statement">{profile.heroStatement[0]}<br />{profile.heroStatement[1]}</p><p className="availability"><span aria-hidden="true" />{profile.availability}</p><a className="primary-button" href="#projects" onClick={handlePageAnchorClick}>查看作品 <ArrowUpRight size={18} weight="bold" aria-hidden="true" /></a><p className="location">{profile.location}<br />© {profile.name.toUpperCase()} 2026</p></div>
+    <div className="hero__copy"><p className="eyebrow">{profile.name.toUpperCase()} / 作品集与随笔 2026</p><h1 id="hero-title"><span className="hero__name">{profile.name.toUpperCase()} <em>/</em></span><span className="hero__role-lockup"><span className="hero__role-en">CREATIVE DEVELOPER</span><span className="hero__role-cn">创意开发者<br />AI 应用与 Agent 系统</span></span></h1><p className="hero__statement">{profile.heroStatement[0]}<br />{profile.heroStatement[1]}</p><p className="availability"><span aria-hidden="true" />{profile.availability}</p><a className="primary-button" href="#projects" onClick={handlePageAnchorClick}>查看作品 <ArrowDown size={21} weight="bold" aria-hidden="true" /></a><p className="location">{profile.location}<br />© {profile.name.toUpperCase()} 2026</p></div>
     <div className="hero__visual"><DeferredAsteroidScene forceFallback={forceSceneFallback} onProgress={onSceneProgress} onReady={onSceneReady} /></div>
   </section>;
 }
@@ -842,7 +867,7 @@ export function App() {
       onComplete={completeOpening}
       settledTrackVh={portfolioJourneyMetrics.trackVh}
       journeyWaypoints={portfolioJourneyMetrics.waypoints}
-      chrome={<><Header onReplay={replayOpening} /><SectionRail /></>}
+      chrome={<PageChrome onReplay={replayOpening} />}
       hero={<HeroSection forceSceneFallback={sceneLoad.forceFallback} onSceneProgress={updateSceneLoad} onSceneReady={completeSceneLoad} />}
       journey={<PortfolioJourney active={!introActive && !booting} projects={projects} onOpenProject={openProject} />}
     />
