@@ -12,7 +12,7 @@ export function getPortfolioJourneyMetrics() {
 
   return {
     totalUnits,
-    trackVh: Math.ceil((totalUnits + 1) * 100),
+    trackVh: Math.ceil((totalUnits + 2) * 100),
     handoffStart: PROJECT_HANDOFF_START_UNITS,
     handoffEnd: PROJECT_HANDOFF_END_UNITS,
     ringExitStart: PROJECT_HANDOFF_START_UNITS,

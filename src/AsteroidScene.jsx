@@ -866,6 +866,14 @@ export default function AsteroidScene({ onProgress, onReady }) {
     const pointerTarget = new THREE.Vector2();
     let cameraDistance = 8.9;
     let isVisible = true;
+    const sceneFocusHost = canvas.closest(".opening-stage");
+    const storedSceneFocus = sceneFocusHost?.dataset.portfolioSceneFocus;
+    let requestedVisibleFocusX = storedSceneFocus === undefined
+      ? null
+      : Number(storedSceneFocus);
+    if (!Number.isFinite(requestedVisibleFocusX)) requestedVisibleFocusX = null;
+    let viewWidth = 0;
+    let viewHeight = 0;
     const onPointerMove = (event) => {
       if (reduceMotion || event.pointerType === "touch") return;
       const viewportWidth = Math.max(window.innerWidth, 1);
@@ -879,34 +887,55 @@ export default function AsteroidScene({ onProgress, onReady }) {
     window.addEventListener("blur", onPointerLeave);
     document.documentElement.addEventListener("pointerleave", onPointerLeave);
 
+    const applyCameraViewOffset = () => {
+      if (!viewWidth || !viewHeight) return;
+      const viewportWidth = window.innerWidth;
+      const baselineFocusX = viewportWidth <= 760 ? 0.66 : viewportWidth <= 1080 ? 0.5 : 0.68;
+      const visibleFocusX = viewportWidth > 1080 && requestedVisibleFocusX !== null
+        ? THREE.MathUtils.clamp(requestedVisibleFocusX, 0.42, 0.76)
+        : baselineFocusX;
+      const focusY = viewportWidth <= 760 ? 0.75 : 0.535;
+      const visibleWidth = Math.min(viewportWidth, viewWidth);
+      const horizontalOverscan = Math.max(0, (viewWidth - visibleWidth) * 0.5);
+      const focusX = (horizontalOverscan + visibleFocusX * visibleWidth) / viewWidth;
+      camera.setViewOffset(
+        viewWidth,
+        viewHeight,
+        (0.5 - focusX) * viewWidth,
+        (0.5 - focusY) * viewHeight,
+        viewWidth,
+        viewHeight,
+      );
+      canvas.dataset.sceneFocus = `${Math.round(visibleFocusX * 100)}%,${Math.round(focusY * 100)}%`;
+      camera.updateProjectionMatrix();
+    };
+
+    const onPortfolioSceneFocus = (event) => {
+      const nextFocus = event.detail?.focusX;
+      requestedVisibleFocusX = nextFocus === null || nextFocus === undefined
+        ? null
+        : Number(nextFocus);
+      if (!Number.isFinite(requestedVisibleFocusX)) requestedVisibleFocusX = null;
+      applyCameraViewOffset();
+    };
+    sceneFocusHost?.addEventListener("portfolio:scene-focus", onPortfolioSceneFocus);
+
     const resize = () => {
       const width = canvas.clientWidth;
       const height = canvas.clientHeight;
       if (!width || !height) return;
+      viewWidth = width;
+      viewHeight = height;
       renderer.setSize(width, height, false);
       camera.aspect = width / height;
       const viewportWidth = window.innerWidth;
-      const visibleFocusX = viewportWidth <= 760 ? 0.66 : viewportWidth <= 1080 ? 0.5 : 0.68;
-      const focusY = viewportWidth <= 760 ? 0.75 : 0.535;
-      const visibleWidth = Math.min(viewportWidth, width);
-      const horizontalOverscan = Math.max(0, (width - visibleWidth) * 0.5);
-      const focusX = (horizontalOverscan + visibleFocusX * visibleWidth) / width;
       const previousVisualHeight = viewportWidth <= 760
         ? height * 0.858
         : Math.max(1, height - 176) * 1.1;
       cameraDistance = viewportWidth <= 760
         ? 9.2
         : THREE.MathUtils.clamp(7.9 * (height / previousVisualHeight), 8.6, 9.5);
-      camera.setViewOffset(
-        width,
-        height,
-        (0.5 - focusX) * width,
-        (0.5 - focusY) * height,
-        width,
-        height,
-      );
-      canvas.dataset.sceneFocus = `${Math.round(visibleFocusX * 100)}%,${Math.round(focusY * 100)}%`;
-      camera.updateProjectionMatrix();
+      applyCameraViewOffset();
     };
     const resizeObserver = new ResizeObserver(resize);
     resizeObserver.observe(canvas);
@@ -976,6 +1005,7 @@ export default function AsteroidScene({ onProgress, onReady }) {
       window.removeEventListener("pointermove", onPointerMove, pointerMoveOptions);
       window.removeEventListener("blur", onPointerLeave);
       document.documentElement.removeEventListener("pointerleave", onPointerLeave);
+      sceneFocusHost?.removeEventListener("portfolio:scene-focus", onPortfolioSceneFocus);
       resizeObserver.disconnect();
       intersectionObserver.disconnect();
       bodies.forEach((body) => {

@@ -746,11 +746,15 @@ export function App() {
       journey={<PortfolioJourney active={!introActive && !booting} projects={projects} onOpenProject={openProject} />}
     />
     <section className="contact snap-panel" id="contact" aria-labelledby="contact-title">
-      <div className="contact__copy">
-        <p className="eyebrow">CONTACT / 04 / SAY HELLO</p>
-        <h2 id="contact-title">一起做点有意思的事 <em>/</em></h2>
-        <p>如果你有想法或项目，欢迎随时联系我。</p>
-        <div className="contact__links">
+      <div className="contact__layout">
+        <header className="contact__lead">
+          <p className="eyebrow">CONTACT / 04 / OPEN CHANNEL</p>
+          <h2 id="contact-title">下一条路径，<br />从你的问题开始 <em>/</em></h2>
+        </header>
+        <div className="contact__aside">
+          <p className="contact__note">如果你正在构建 Agent、检索系统，或一个还没有被定义好的产品，我们可以从问题本身开始。</p>
+        </div>
+        <div className="contact__links" aria-label="联系渠道">
           <a href={`mailto:${profile.email}`}><EnvelopeSimple size={22} aria-hidden="true" /><span><small>EMAIL</small>{profile.email}</span></a>
           <a href={profile.github.url} target="_blank" rel="noreferrer"><GithubLogo size={22} aria-hidden="true" /><span><small>GITHUB</small>{profile.github.label}</span></a>
           <button className="contact__wechat-id" type="button" aria-haspopup="dialog" onClick={() => setWechatOpen(true)}><WechatLogo size={22} aria-hidden="true" /><span><small>WECHAT</small>{profile.wechat.label}</span></button>

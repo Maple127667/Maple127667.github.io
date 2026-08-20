@@ -64,6 +64,7 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
   const activeIndexRef = useRef(-1);
   const stackActiveRef = useRef(false);
   const handoffActiveRef = useRef(false);
+  const contactActiveRef = useRef(false);
   const ringLockedRef = useRef(false);
   const hoveredProjectRef = useRef(null);
   const scheduleMotionRef = useRef(() => {});
@@ -85,6 +86,7 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
   const [activeIndex, setActiveIndex] = useState(-1);
   const [stackActive, setStackActive] = useState(false);
   const [handoffActive, setHandoffActive] = useState(false);
+  const [contactActive, setContactActive] = useState(false);
   const [detailProjectId, setDetailProjectId] = useState(null);
   const [rotationPaused, setRotationPaused] = useState(false);
   const [staticMode, setStaticMode] = useState(() => window.matchMedia(
@@ -108,6 +110,56 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
     const track = root?.closest(".opening-scroll-track");
     const stage = root?.closest(".opening-stage");
     if (!root || !track || !stage) return undefined;
+    const page = track.parentElement;
+    const contact = track.nextElementSibling?.matches?.("#contact")
+      ? track.nextElementSibling
+      : null;
+    const contactSurroundMedia = window.matchMedia(
+      "(min-width: 1100px) and (min-height: 720px) and (prefers-reduced-motion: no-preference)",
+    );
+    let contactHiddenState = null;
+    const gateContact = (enabled) => {
+      if (!contact) return;
+      const shouldHide = contactSurroundMedia.matches && !enabled;
+      if (contactHiddenState === shouldHide) return;
+      contactHiddenState = shouldHide;
+      contact.toggleAttribute("inert", shouldHide);
+      if (shouldHide) {
+        contact.setAttribute("aria-hidden", "true");
+        if (contact.contains(document.activeElement)) document.activeElement.blur?.();
+      } else {
+        contact.removeAttribute("aria-hidden");
+      }
+    };
+    const restoreContactContract = () => {
+      contactHiddenState = null;
+      if (page) {
+        page.style.removeProperty("--contact-content-opacity");
+        page.style.removeProperty("--contact-left-x");
+        page.style.removeProperty("--contact-right-x");
+        delete page.dataset.portfolioContactActive;
+      }
+      contact?.removeAttribute("inert");
+      contact?.removeAttribute("aria-hidden");
+    };
+    let lastPublishedSceneFocus = null;
+    const publishSceneFocus = (focusX) => {
+      if (focusX === null) {
+        delete stage.dataset.portfolioSceneFocus;
+        lastPublishedSceneFocus = null;
+        stage.dispatchEvent(new CustomEvent("portfolio:scene-focus", {
+          detail: { focusX: null },
+        }));
+        return;
+      }
+      if (lastPublishedSceneFocus !== null
+        && Math.abs(lastPublishedSceneFocus - focusX) < 0.00005) return;
+      lastPublishedSceneFocus = focusX;
+      stage.dataset.portfolioSceneFocus = focusX.toFixed(5);
+      stage.dispatchEvent(new CustomEvent("portfolio:scene-focus", {
+        detail: { focusX },
+      }));
+    };
 
     const ringInteraction = ringInteractionRef.current;
     ringInteraction.pointerId = null;
@@ -123,9 +175,25 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
       stage.style.setProperty("--portfolio-rail-opacity", "1");
       stage.style.setProperty("--portfolio-rail-x", "0px");
       stage.style.setProperty("--portfolio-scene-opacity", "1");
+      stage.style.setProperty("--portfolio-chrome-opacity", "1");
+      stage.style.setProperty("--portfolio-chrome-y", "0px");
       root.style.setProperty("--project-plane-y", "0vh");
       root.style.setProperty("--project-plane-opacity", staticMode ? "1" : "0");
       root.style.setProperty("--stack-opacity", staticMode ? "1" : "0");
+      root.style.setProperty("--contact-progress", "0");
+      root.style.setProperty("--stack-contact-opacity", "1");
+      root.style.setProperty("--stack-contact-scale", "1");
+      root.style.setProperty("--stack-contact-y", "0vh");
+      root.style.removeProperty("--stack-heading-exit");
+      root.style.removeProperty("--stack-secondary-exit");
+      root.style.removeProperty("--stack-integration-exit");
+      root.style.removeProperty("--stack-agent-exit");
+      page?.style.setProperty("--portfolio-contact-progress", "0");
+      page?.style.setProperty("--contact-content-opacity", "0");
+      page?.style.setProperty("--contact-left-x", "-72px");
+      page?.style.setProperty("--contact-right-x", "72px");
+      if (page) page.dataset.portfolioContactActive = "false";
+      gateContact(false);
       root.style.setProperty("--journey-backdrop-opacity", staticMode ? "1" : "0");
       root.style.setProperty("--journey-heading-opacity", staticMode ? "1" : "0");
       root.style.setProperty("--handoff-opacity", "0");
@@ -137,9 +205,13 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
         group.style.setProperty("--stack-group-x", staticMode ? "0px" : "34px");
         group.style.setProperty("--stack-group-y", staticMode ? "0px" : "18px");
         group.style.setProperty("--stack-group-scale", staticMode ? "1" : "0.94");
+        group.style.removeProperty("--stack-group-contact-exit");
       });
       root.dataset.ringInteractive = "false";
       root.dataset.handoffActive = "false";
+      root.dataset.contactActive = "false";
+      root.dataset.contactExiting = "false";
+      publishSceneFocus(null);
       ringLockedRef.current = false;
     };
 
@@ -149,10 +221,12 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
       activeIndexRef.current = -1;
       stackActiveRef.current = false;
       handoffActiveRef.current = false;
+      contactActiveRef.current = false;
       setActiveIndex(-1);
       setStackActive(false);
       setHandoffActive(false);
-      return undefined;
+      setContactActive(false);
+      return restoreContactContract;
     }
 
     const syncWaypointPositions = (useStaticLayout) => {
@@ -178,9 +252,11 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
       activeIndexRef.current = -1;
       stackActiveRef.current = true;
       handoffActiveRef.current = false;
+      contactActiveRef.current = false;
       setActiveIndex(-1);
       setStackActive(true);
       setHandoffActive(false);
+      setContactActive(false);
       let staticFrame = window.requestAnimationFrame(() => syncWaypointPositions(true));
       const syncStaticLayout = () => {
         window.cancelAnimationFrame(staticFrame);
@@ -195,6 +271,7 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
         window.cancelAnimationFrame(staticFrame);
         staticResizeObserver?.disconnect();
         window.removeEventListener("resize", syncStaticLayout);
+        restoreContactContract();
       };
     }
 
@@ -217,7 +294,28 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
 
       const viewportHeight = Math.max(1, window.innerHeight);
       const rect = track.getBoundingClientRect();
-      const scrollUnits = clamp(-rect.top / viewportHeight, 0, metrics.totalUnits);
+      const rawScrollUnits = clamp(
+        -rect.top / viewportHeight,
+        0,
+        metrics.totalUnits + 1,
+      );
+      const scrollUnits = clamp(rawScrollUnits, 0, metrics.totalUnits);
+      const contactProgress = smoothstep(0, 1, clamp(
+        rawScrollUnits - metrics.totalUnits,
+      ));
+      const projectSceneFocusProgress = smoothstep(
+        0,
+        PROJECT_FIRST_CENTER_UNITS,
+        rawScrollUnits,
+      );
+      const settledSceneFocus = mix(0.68, 0.64, projectSceneFocusProgress);
+      const journeySceneFocusProgress = smoothstep(
+        PROJECT_FIRST_CENTER_UNITS,
+        metrics.totalUnits + 1,
+        rawScrollUnits,
+      );
+      const sceneFocusX = mix(settledSceneFocus, 0.5, journeySceneFocusProgress);
+      publishSceneFocus(sceneFocusX);
       const handoffProgress = clamp(
         (scrollUnits - metrics.handoffStart)
           / Math.max(0.0001, metrics.handoffEnd - metrics.handoffStart),
@@ -269,6 +367,22 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
       const stackReveal = smoothstep(0.48, 0.62, handoffProgress);
       const stackHeadingReveal = smoothstep(0.5, 0.74, handoffProgress);
       const stackIsActive = handoffProgress > 0.9;
+      const stackDwellProgress = clamp(
+        (scrollUnits - metrics.handoffEnd)
+          / Math.max(0.0001, metrics.totalUnits - metrics.handoffEnd),
+      );
+      const stackSceneRestore = smoothstep(0.08, 1, stackDwellProgress);
+      const contactSceneRestore = smoothstep(0.02, 0.42, contactProgress);
+      const sceneRestoreProgress = clamp(
+        stackSceneRestore * 0.28 + contactSceneRestore * 0.72,
+      );
+      const stackHeadingExit = smoothstep(0.52, 0.72, contactProgress);
+      const stackHeadingPresence = stackHeadingReveal * (1 - stackHeadingExit);
+      const stackWholeFade = smoothstep(0.94, 1, contactProgress);
+      const contactContentReveal = smoothstep(0.66, 0.94, contactProgress);
+      const stackContactIsActive = contactSurroundMedia.matches && contactProgress > 0.7;
+      const contactIsInteractive = contactSurroundMedia.matches && contactProgress > 0.72;
+      const contactIsExiting = contactProgress > 0.001 && contactProgress < 0.98;
       const stageIsVisible = rect.bottom > 0 && rect.top < viewportHeight;
 
       if (ringInteraction.pendingDelta !== 0) {
@@ -300,23 +414,46 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
       stage.style.setProperty("--portfolio-hero-opacity", heroCopyFade.toFixed(4));
       stage.style.setProperty("--portfolio-rail-opacity", (1 - smoothstep(0.08, 0.58, scrollUnits)).toFixed(4));
       stage.style.setProperty("--portfolio-rail-x", `${mix(0, -96, smoothstep(0.08, 0.58, scrollUnits)).toFixed(3)}px`);
-      stage.style.setProperty("--portfolio-scene-opacity", mix(
+      const dimmedSceneOpacity = mix(
         1,
         0.22,
         smoothstep(0.2, PROJECT_FIRST_CENTER_UNITS + 0.12, scrollUnits),
+      );
+      stage.style.setProperty("--portfolio-scene-opacity", mix(
+        dimmedSceneOpacity,
+        1,
+        sceneRestoreProgress,
       ).toFixed(4));
+      stage.style.setProperty("--portfolio-chrome-opacity", "1");
+      stage.style.setProperty("--portfolio-chrome-y", "0px");
       root.style.setProperty("--project-plane-y", "0vh");
       root.style.setProperty("--project-plane-opacity", projectPlaneVisibility.toFixed(4));
       root.style.setProperty("--stack-opacity", stackReveal.toFixed(4));
-      root.style.setProperty("--journey-backdrop-opacity", Math.max(projectEntrance * 0.94, stackReveal).toFixed(4));
+      root.style.setProperty("--contact-progress", contactProgress.toFixed(4));
+      page?.style.setProperty("--portfolio-contact-progress", contactProgress.toFixed(4));
+      page?.style.setProperty("--contact-content-opacity", contactContentReveal.toFixed(4));
+      page?.style.setProperty("--contact-left-x", `${mix(-72, 0, contactContentReveal).toFixed(3)}px`);
+      page?.style.setProperty("--contact-right-x", `${mix(72, 0, contactContentReveal).toFixed(3)}px`);
+      if (page) page.dataset.portfolioContactActive = contactIsInteractive ? "true" : "false";
+      gateContact(contactIsInteractive);
+      root.style.setProperty("--stack-contact-opacity", (1 - stackWholeFade).toFixed(4));
+      root.style.setProperty("--stack-contact-scale", "1");
+      root.style.setProperty("--stack-contact-y", "0vh");
+      root.style.setProperty("--journey-backdrop-opacity", mix(
+        Math.max(projectEntrance * 0.94, stackReveal),
+        0.02,
+        contactSceneRestore,
+      ).toFixed(4));
       root.style.setProperty("--journey-heading-opacity", (
         projectEntrance * (1 - smoothstep(0.08, 0.3, handoffProgress))
       ).toFixed(4));
       root.style.setProperty("--handoff-opacity", bridgeOpacity.toFixed(4));
       root.style.setProperty("--handoff-scale", mix(0.94, 1.035, bridgeScaleProgress).toFixed(4));
-      root.style.setProperty("--stack-heading-opacity", stackHeadingReveal.toFixed(4));
-      root.style.setProperty("--stack-heading-y", `${mix(32, 0, stackHeadingReveal).toFixed(3)}px`);
+      root.style.setProperty("--stack-heading-opacity", stackHeadingPresence.toFixed(4));
+      root.style.setProperty("--stack-heading-y", `${mix(32, 0, stackHeadingPresence).toFixed(3)}px`);
       root.dataset.handoffActive = handoffIsActive ? "true" : "false";
+      root.dataset.contactActive = stackContactIsActive ? "true" : "false";
+      root.dataset.contactExiting = contactIsExiting ? "true" : "false";
 
       projectTechnologyGroups.forEach((group, groupIndex) => {
         const groupElement = stackGroupRefs.current.get(group.id);
@@ -326,10 +463,18 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
           0.7 + groupIndex * 0.05,
           handoffProgress,
         );
-        groupElement.style.setProperty("--stack-group-opacity", groupReveal.toFixed(4));
-        groupElement.style.setProperty("--stack-group-x", `${mix(34, 0, groupReveal).toFixed(3)}px`);
-        groupElement.style.setProperty("--stack-group-y", `${mix(18, 0, groupReveal).toFixed(3)}px`);
-        groupElement.style.setProperty("--stack-group-scale", mix(0.94, 1, groupReveal).toFixed(4));
+        const exitOrder = projectTechnologyGroups.length - 1 - groupIndex;
+        const groupExitStart = 0.08 + exitOrder * 0.1;
+        const groupExit = smoothstep(
+          groupExitStart,
+          groupExitStart + 0.2,
+          contactProgress,
+        );
+        const groupPresence = groupReveal * (1 - groupExit);
+        groupElement.style.setProperty("--stack-group-opacity", groupPresence.toFixed(4));
+        groupElement.style.setProperty("--stack-group-x", `${mix(34, 0, groupPresence).toFixed(3)}px`);
+        groupElement.style.setProperty("--stack-group-y", `${mix(18, 0, groupPresence).toFixed(3)}px`);
+        groupElement.style.setProperty("--stack-group-scale", mix(0.94, 1, groupPresence).toFixed(4));
       });
 
       const nextActiveIndex = projectEntrance >= 0.42 && !stackIsActive
@@ -375,6 +520,10 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
       if (handoffIsActive !== handoffActiveRef.current) {
         handoffActiveRef.current = handoffIsActive;
         setHandoffActive(handoffIsActive);
+      }
+      if (stackContactIsActive !== contactActiveRef.current) {
+        contactActiveRef.current = stackContactIsActive;
+        setContactActive(stackContactIsActive);
       }
 
       const pointerIsSettling = Math.abs(pointerTargetX - pointerX) > 0.001
@@ -436,6 +585,7 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
       window.removeEventListener("resize", schedule);
       scheduleMotionRef.current = () => {};
       resetMotion();
+      restoreContactContract();
     };
   }, [active, metrics, projects, staticMode]);
 
@@ -694,8 +844,8 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
       ref={stackRef}
       className="portfolio-stack"
       aria-labelledby="portfolio-stack-title"
-      aria-hidden={stackActive || staticMode ? undefined : "true"}
-      inert={stackActive || staticMode ? undefined : true}
+      aria-hidden={(stackActive || staticMode) && !contactActive ? undefined : "true"}
+      inert={(stackActive || staticMode) && !contactActive ? undefined : true}
     >
       <header className="portfolio-stack__heading">
         <p>DERIVED FROM {String(projects.length).padStart(2, "0")} PROJECTS</p>
