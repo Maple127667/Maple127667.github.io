@@ -362,11 +362,11 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
       const projectPlaneVisibility = projectEntrance
         * (1 - smoothstep(0.67, 0.72, handoffProgress));
       const bridgeOpacity = smoothstep(0.3, 0.4, handoffProgress)
-        * (1 - smoothstep(0.54, 0.66, handoffProgress));
+        * (1 - smoothstep(0.68, 0.8, handoffProgress));
       const bridgeScaleProgress = smoothstep(0.3, 0.66, handoffProgress);
-      const stackReveal = smoothstep(0.48, 0.62, handoffProgress);
-      const stackHeadingReveal = smoothstep(0.5, 0.74, handoffProgress);
-      const stackIsActive = handoffProgress > 0.9;
+      const stackReveal = smoothstep(0.78, 0.88, handoffProgress);
+      const stackHeadingReveal = smoothstep(0.8, 0.94, handoffProgress);
+      const stackIsActive = handoffProgress > 0.98;
       const stackDwellProgress = clamp(
         (scrollUnits - metrics.handoffEnd)
           / Math.max(0.0001, metrics.totalUnits - metrics.handoffEnd),
@@ -459,8 +459,8 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
         const groupElement = stackGroupRefs.current.get(group.id);
         if (!groupElement) return;
         const groupReveal = smoothstep(
-          0.54 + groupIndex * 0.06,
-          0.7 + groupIndex * 0.05,
+          0.82 + groupIndex * 0.02,
+          0.9 + groupIndex * 0.02,
           handoffProgress,
         );
         const exitOrder = projectTechnologyGroups.length - 1 - groupIndex;
