@@ -875,10 +875,13 @@ export function App() {
       <div className="contact__layout">
         <header className="contact__lead">
           <p className="eyebrow">CONTACT / 04 / OPEN CHANNEL</p>
-          <h2 id="contact-title">下一条路径，<br />从你的问题开始 <em>/</em></h2>
+          <h2 id="contact-title">
+            <span>做点有意思的</span>
+            <span>让技术，跟上想法<em>/</em></span>
+          </h2>
         </header>
         <div className="contact__aside">
-          <p className="contact__note">如果你正在构建 Agent、检索系统，或一个还没有被定义好的产品，我们可以从问题本身开始。</p>
+          <p className="contact__note">很多项目的开始，往往只是一个让我感到好奇的问题。我更相信好奇心，而不是一条固定的技术路线。灵感出现时，先让它自由生长；技术不够，就继续学习，直到它拥有可以落地的形状。</p>
         </div>
         <div className="contact__links" aria-label="联系渠道">
           <a href={`mailto:${profile.email}`}><EnvelopeSimple size={22} aria-hidden="true" /><span><small>EMAIL</small>{profile.email}</span></a>

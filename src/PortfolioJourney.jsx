@@ -184,7 +184,6 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
       root.style.setProperty("--stack-contact-opacity", "1");
       root.style.setProperty("--stack-contact-scale", "1");
       root.style.setProperty("--stack-contact-y", "0vh");
-      root.style.removeProperty("--stack-heading-exit");
       root.style.removeProperty("--stack-secondary-exit");
       root.style.removeProperty("--stack-integration-exit");
       root.style.removeProperty("--stack-agent-exit");
@@ -202,8 +201,6 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
       root.style.setProperty("--handoff-plane-y", "0px");
       root.style.setProperty("--handoff-plane-rotate-x", "0deg");
       root.style.setProperty("--handoff-plane-rotate-y", "0deg");
-      root.style.setProperty("--stack-heading-opacity", staticMode ? "1" : "0");
-      root.style.setProperty("--stack-heading-y", staticMode ? "0px" : "28px");
       stackGroupRefs.current.forEach((group) => {
         group.style.setProperty("--stack-group-opacity", staticMode ? "1" : "0");
         group.style.setProperty("--stack-group-x", staticMode ? "0px" : "34px");
@@ -372,7 +369,6 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
       const sharedPlaneX = pointerX * sharedPlaneWeight;
       const sharedPlaneY = pointerY * sharedPlaneWeight;
       const stackReveal = smoothstep(0.78, 0.88, handoffProgress);
-      const stackHeadingReveal = smoothstep(0.8, 0.94, handoffProgress);
       const stackIsActive = handoffProgress > 0.98;
       const stackDwellProgress = clamp(
         (scrollUnits - metrics.handoffEnd)
@@ -383,8 +379,6 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
       const sceneRestoreProgress = clamp(
         stackSceneRestore * 0.28 + contactSceneRestore * 0.72,
       );
-      const stackHeadingExit = smoothstep(0.52, 0.72, contactProgress);
-      const stackHeadingPresence = stackHeadingReveal * (1 - stackHeadingExit);
       const stackWholeFade = smoothstep(0.94, 1, contactProgress);
       const contactContentReveal = smoothstep(0.66, 0.94, contactProgress);
       const stackContactIsActive = contactSurroundMedia.matches && contactProgress > 0.7;
@@ -460,8 +454,6 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
       root.style.setProperty("--handoff-plane-y", `${(sharedPlaneY * 4).toFixed(3)}px`);
       root.style.setProperty("--handoff-plane-rotate-x", `${(-sharedPlaneY * 0.65).toFixed(3)}deg`);
       root.style.setProperty("--handoff-plane-rotate-y", `${(sharedPlaneX * 0.8).toFixed(3)}deg`);
-      root.style.setProperty("--stack-heading-opacity", stackHeadingPresence.toFixed(4));
-      root.style.setProperty("--stack-heading-y", `${mix(32, 0, stackHeadingPresence).toFixed(3)}px`);
       root.dataset.handoffActive = handoffIsActive ? "true" : "false";
       root.dataset.contactActive = stackContactIsActive ? "true" : "false";
       root.dataset.contactExiting = contactIsExiting ? "true" : "false";
@@ -852,14 +844,10 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
     <section
       ref={stackRef}
       className="portfolio-stack"
-      aria-labelledby="portfolio-stack-title"
+      aria-label="技术栈与能力"
       aria-hidden={(stackActive || staticMode) && !contactActive ? undefined : "true"}
       inert={(stackActive || staticMode) && !contactActive ? undefined : true}
     >
-      <header className="portfolio-stack__heading">
-        <p>DERIVED FROM {String(projects.length).padStart(2, "0")} PROJECTS</p>
-        <h2 id="portfolio-stack-title">技术栈不是清单，<br />是项目留下的路径。</h2>
-      </header>
       <div className="portfolio-stack__groups">
         {projectTechnologyGroups.map((group) => {
           const technologies = uniqueTechnologies.filter((technology) => technology.groupId === group.id);
@@ -875,7 +863,7 @@ export function PortfolioJourney({ active, projects, onOpenProject }) {
             <p>{group.eyebrow}</p>
             <h3>{group.title}</h3>
             <ul className="portfolio-stack__semantic-list">
-              {technologies.map((technology) => <li key={technology.id}>
+              {technologies.map((technology) => <li data-kind={technology.kind} key={technology.id}>
                 {technology.label}{technology.sources.length > 1 ? ` ×${technology.sources.length}` : ""}
               </li>)}
             </ul>

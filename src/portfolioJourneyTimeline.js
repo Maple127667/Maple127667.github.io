@@ -1,7 +1,7 @@
 export const PROJECT_FIRST_CENTER_UNITS = 0.72;
 export const PROJECT_HANDOFF_START_UNITS = 1.46;
 export const PROJECT_HANDOFF_END_UNITS = 2.22;
-export const STACK_DWELL_UNITS = 0.72;
+export const STACK_DWELL_UNITS = 0.34;
 
 // Keep the previous names available for callers outside the journey component.
 export const PROJECT_RING_EXIT_START_UNITS = PROJECT_HANDOFF_START_UNITS;
