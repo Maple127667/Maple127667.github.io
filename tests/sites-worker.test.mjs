@@ -8,6 +8,7 @@ const contentWorker = createWorker([
   "/blog/2026-08-03",
   "/blog/2025-10-01",
   "/blog/2023-10-12",
+  "/blog/2022-05-04",
   "/articles/vibe-coding",
   "/projects/search-agent",
 ]);
@@ -134,6 +135,27 @@ test("serves the app shell for the long-form blog post", async () => {
   assert.equal(await response.text(), "app");
 });
 
+test("serves the app shell for the imported hopper analysis", async () => {
+  const response = await contentWorker.fetch(
+    new Request("https://example.test/blog/2022-05-04", {
+      headers: { accept: "text/html" },
+    }),
+    {
+      ASSETS: {
+        fetch: async (request) => {
+          const pathname = new URL(request.url).pathname;
+          return new Response(pathname === "/index.html" ? "app" : "missing", {
+            status: pathname === "/index.html" ? 200 : 404,
+          });
+        },
+      },
+    },
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), "app");
+});
+
 test("keeps unpublished blog slugs as true 404 pages", async () => {
   const response = await contentWorker.fetch(
     new Request("https://example.test/blog/not-published", {
@@ -211,4 +233,5 @@ test("emits the files required by Sites packaging", async () => {
   assert.match(generatedWorker, /\/blog\/2026-08-03/);
   assert.match(generatedWorker, /\/blog\/2025-10-01/);
   assert.match(generatedWorker, /\/blog\/2023-10-12/);
+  assert.match(generatedWorker, /\/blog\/2022-05-04/);
 });

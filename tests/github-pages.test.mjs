@@ -26,6 +26,10 @@ test("emits GitHub Pages shells for direct content routes", async () => {
     new URL("../dist/client/blog/2023-10-12/index.html", import.meta.url),
     "utf8",
   );
+  const thirdBlogPostShell = await readFile(
+    new URL("../dist/client/blog/2022-05-04/index.html", import.meta.url),
+    "utf8",
+  );
 
   assert.equal(notFoundShell, shell);
   assert.equal(articleShell, shell);
@@ -34,4 +38,5 @@ test("emits GitHub Pages shells for direct content routes", async () => {
   assert.equal(latestBlogPostShell, shell);
   assert.equal(firstBlogPostShell, shell);
   assert.equal(secondBlogPostShell, shell);
+  assert.equal(thirdBlogPostShell, shell);
 });

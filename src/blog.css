@@ -10,7 +10,7 @@
   --blog-line-soft: rgba(85, 175, 232, 0.16);
   --blog-gutter: clamp(24px, 6vw, 96px);
 
-  min-width: 320px;
+  min-width: 0;
   min-height: 100vh;
   overflow-x: clip;
   color: var(--blog-ink);
@@ -70,6 +70,7 @@ body[data-blog-theme="dark"] {
 }
 
 .blog-foyer {
+  min-height: calc(100vh - 88px);
   min-height: calc(100svh - 88px);
   padding: 0 var(--blog-gutter);
   display: grid;
@@ -114,6 +115,7 @@ body[data-blog-theme="dark"] {
 }
 
 .blog-header__actions {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: clamp(22px, 3vw, 42px);
@@ -129,6 +131,7 @@ body[data-blog-theme="dark"] {
   font-size: 14px;
   font-weight: 560;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .blog-header__back:hover {
@@ -145,12 +148,13 @@ body[data-blog-theme="dark"] {
   padding-left: 14px;
   color: var(--blog-muted);
   border-left: 1px solid var(--blog-line);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 580;
   letter-spacing: 0.14em;
 }
 
 .blog-theme-toggle {
+  min-width: 44px;
   min-height: 44px;
   padding: 0 0 2px;
   display: inline-flex;
@@ -185,6 +189,7 @@ body[data-blog-theme="dark"] {
   line-height: 1.12;
   letter-spacing: -0.045em;
   text-wrap: balance;
+  overflow-wrap: anywhere;
 }
 
 .blog-foyer__copy {
@@ -235,7 +240,7 @@ body[data-blog-theme="dark"] {
 .blog-foyer__recent > p:first-child {
   margin: 0 0 28px;
   color: var(--blog-muted);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 650;
   line-height: 1;
   letter-spacing: 0.09em;
@@ -257,7 +262,7 @@ body[data-blog-theme="dark"] {
 
 .blog-foyer__recent time {
   color: var(--blog-faint);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.2;
 }
 
@@ -283,11 +288,17 @@ body[data-blog-theme="dark"] {
 }
 
 .blog-directory {
+  min-height: 100vh;
   min-height: 100svh;
   padding: clamp(78px, 9vw, 132px) var(--blog-gutter) 38px;
   display: flex;
   flex-direction: column;
   background: var(--blog-field-soft);
+  scroll-margin-top: 104px;
+}
+
+.blog-directory__posts li[id] {
+  scroll-margin-top: 104px;
 }
 
 .blog-directory__layout {
@@ -373,6 +384,7 @@ body[data-blog-theme="dark"] {
   font-weight: 540;
   line-height: 1.32;
   letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
 }
 
 .blog-directory__posts h3 a:hover {
@@ -489,7 +501,7 @@ body[data-blog-theme="dark"] {
   justify-content: flex-end;
   gap: 28px;
   color: var(--blog-faint);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 580;
   line-height: 1.4;
   letter-spacing: 0.08em;
@@ -514,6 +526,14 @@ body[data-blog-theme="dark"] {
   .blog-directory__footer {
     width: min(100%, 820px);
   }
+
+  .blog-foyer__recent a,
+  .blog-directory__posts h3 a,
+  .blog-directory__rail li > a {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
 }
 
 @media (max-width: 760px) {
@@ -526,6 +546,7 @@ body[data-blog-theme="dark"] {
   }
 
   .blog-foyer {
+    min-height: calc(100vh - 72px);
     min-height: calc(100svh - 72px);
   }
 
@@ -547,7 +568,12 @@ body[data-blog-theme="dark"] {
 
   .blog-foyer__intro {
     width: 100%;
-    padding: clamp(52px, 9vh, 78px) 0 clamp(46px, 8vh, 68px);
+    min-height: calc(100vh - 72px);
+    min-height: calc(100svh - 72px);
+    padding: clamp(38px, 8vh, 62px) 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
 
   .blog-foyer__body {
@@ -556,6 +582,8 @@ body[data-blog-theme="dark"] {
       "intro"
       "recent";
     gap: 0;
+    align-content: start;
+    align-items: stretch;
   }
 
   .blog-foyer h1 {
@@ -607,6 +635,15 @@ body[data-blog-theme="dark"] {
   .blog-directory__footer {
     align-items: flex-end;
   }
+
+  #blog-directory,
+  .blog-directory__posts li[id] {
+    scroll-margin-top: 88px;
+  }
+
+  .blog-directory__rail section:first-child {
+    display: none;
+  }
 }
 
 @media (max-width: 430px) {
@@ -630,6 +667,27 @@ body[data-blog-theme="dark"] {
     grid-template-columns: 1fr;
   }
 
+}
+
+@media (max-width: 760px) and (max-height: 700px) {
+  .blog-foyer h1 {
+    font-size: clamp(36px, 10vw, 42px);
+  }
+
+  .blog-foyer__copy {
+    font-size: 16px;
+    line-height: 1.7;
+  }
+}
+
+@media (pointer: coarse) {
+  .blog-foyer__recent a,
+  .blog-directory__posts h3 a,
+  .blog-directory__rail li > a {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
