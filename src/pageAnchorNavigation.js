@@ -12,7 +12,11 @@ function animatePageAnchor(target) {
 
   const startY = window.scrollY;
   const maxY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-  const targetY = Math.min(maxY, Math.max(0, startY + target.getBoundingClientRect().top));
+  const scrollMarginTop = Number.parseFloat(window.getComputedStyle(target).scrollMarginTop) || 0;
+  const targetY = Math.min(
+    maxY,
+    Math.max(0, startY + target.getBoundingClientRect().top - scrollMarginTop),
+  );
   const distance = targetY - startY;
   if (Math.abs(distance) < 1) return;
 
