@@ -1,29 +1,26 @@
+import { projectManifest } from "virtual:portfolio-content-manifest";
 import {
   assertUniqueIds,
-  parseMarkdownContent,
-  parseMarkdownFile,
+  createMarkdownBodyLoader,
 } from "../markdown.js";
 
 const projectFiles = import.meta.glob("./*.md", {
-  eager: true,
   import: "default",
   query: "?raw",
 });
 
 const REQUIRED_FIELDS = ["title", "year", "category", "excerpt", "cover"];
 
-function createProject(path, source) {
-  const { data, content } = parseMarkdownFile(path, source);
+function createProject(entry) {
+  const { data, headings, images, path } = entry;
   const missingFields = REQUIRED_FIELDS.filter((field) => !data[field]);
 
   if (missingFields.length) {
     throw new Error(`${path} 缺少 Frontmatter 字段：${missingFields.join(", ")}`);
   }
 
-  const filename = path.split("/").pop().replace(/\.md$/, "");
-
   return {
-    id: String(data.id || filename),
+    id: entry.id,
     order: Number(data.order ?? Number.MAX_SAFE_INTEGER),
     title: String(data.title),
     headline: data.headline ? String(data.headline) : String(data.title),
@@ -31,7 +28,7 @@ function createProject(path, source) {
     link: data.linkUrl
       ? {
           url: String(data.linkUrl),
-          label: String(data.linkLabel || "访问项目"),
+          label: String(data.linkLabel || (entry.locale === "en" ? "Visit project" : "访问项目")),
           type: data.linkType === "github" ? "github" : "website",
         }
       : null,
@@ -46,17 +43,41 @@ function createProject(path, source) {
       : [],
     status: data.status ? String(data.status) : null,
     align: data.align === "left" ? "left" : "right",
-    ...parseMarkdownContent(content),
+    headings,
+    images,
+    loadBody: createMarkdownBodyLoader(path, projectFiles),
   };
 }
 
-const sortedProjects = Object.entries(projectFiles)
-  .map(([path, source]) => createProject(path, source))
+const zhProjects = projectManifest
+  .filter((entry) => entry.locale !== "en")
+  .map(createProject)
   .sort((a, b) => a.order - b.order || b.year.localeCompare(a.year));
 
-assertUniqueIds(sortedProjects, "项目");
+assertUniqueIds(zhProjects, "项目");
 
-export const projects = sortedProjects.map((project, index) => ({
+const canonicalProjects = zhProjects.map((project, index) => ({
   ...project,
   index: String(index + 1).padStart(2, "0"),
 }));
+
+const enProjectById = new Map(
+  projectManifest
+    .filter((entry) => entry.locale === "en")
+    .map((entry) => [entry.id, createProject(entry)]),
+);
+
+export function getProjects(locale) {
+  if (locale !== "en") return canonicalProjects;
+  return canonicalProjects.map((project) => {
+    const enProject = enProjectById.get(project.id);
+    if (!enProject) return project;
+    return {
+      ...enProject,
+      order: project.order,
+      index: project.index,
+    };
+  });
+}
+
+export const projects = canonicalProjects;

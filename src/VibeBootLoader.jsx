@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useLocale } from "./i18n.jsx";
 import "./vibe-boot.css";
 
 const MIN_VISIBLE_MS = 1100;
@@ -8,29 +9,39 @@ const EXIT_DELAY_MS = 190;
 
 export function VibeBootLoader({
   ready = false,
+  progress = 0,
   status = "LOADING SPACE RUNTIME",
   onComplete,
   onTimeout,
 }) {
+  const { copy } = useLocale();
   const [minimumElapsed, setMinimumElapsed] = useState(false);
   const [fontsReady, setFontsReady] = useState(false);
+  const [fontsFallback, setFontsFallback] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
   const [phase, setPhase] = useState("loading");
   const [displayedProgress, setDisplayedProgress] = useState(0);
   const completedRef = useRef(false);
+  const readyRef = useRef(ready);
   const displayedProgressRef = useRef(0);
 
-  const reachedBufferTarget = displayedProgress >= 0.949;
-  const targetProgress = reachedBufferTarget && (timedOut || ready && fontsReady) ? 1 : 0.95;
+  readyRef.current = ready;
+
+  const verifiedProgress = Math.min(1, Math.max(0, Number(progress) || 0));
+  const targetProgress = Math.min(1, verifiedProgress * 0.95 + (fontsReady ? 0.05 : 0));
 
   useEffect(() => {
     let cancelled = false;
     const minimumTimer = window.setTimeout(() => setMinimumElapsed(true), MIN_VISIBLE_MS);
     const failsafeTimer = window.setTimeout(() => {
+      if (readyRef.current || completedRef.current) return;
       setTimedOut(true);
       onTimeout?.();
     }, FAILSAFE_TIMEOUT_MS);
-    const fontTimer = window.setTimeout(() => setFontsReady(true), FONT_TIMEOUT_MS);
+    const fontTimer = window.setTimeout(() => {
+      setFontsFallback(true);
+      setFontsReady(true);
+    }, FONT_TIMEOUT_MS);
     const fontSet = document.fonts;
 
     if (!fontSet?.load) {
@@ -39,9 +50,10 @@ export function VibeBootLoader({
       Promise.allSettled([
         fontSet.load('600 1em "Inter Variable"'),
         fontSet.load('400 1em "Bebas Neue"'),
-      ]).then(() => {
+      ]).then((outcomes) => {
         if (cancelled) return;
         window.clearTimeout(fontTimer);
+        setFontsFallback(outcomes.some((outcome) => outcome.status === "rejected"));
         setFontsReady(true);
       });
     }
@@ -82,7 +94,10 @@ export function VibeBootLoader({
   }, [targetProgress]);
 
   useEffect(() => {
-    if (!ready || !fontsReady || !minimumElapsed || displayedProgress < 0.999) return undefined;
+    if (!ready || !fontsReady || !minimumElapsed || displayedProgress < 0.999) {
+      if (!completedRef.current) setPhase("loading");
+      return undefined;
+    }
     if (completedRef.current) return undefined;
     setPhase("ready");
     const exitTimer = window.setTimeout(() => {
@@ -94,11 +109,12 @@ export function VibeBootLoader({
   }, [displayedProgress, fontsReady, minimumElapsed, onComplete, ready]);
 
   const percentage = Math.round(displayedProgress * 100);
-  const compatibilityMode = status.includes("COMPATIBILITY MODE");
+  const compatibilityMode = fontsFallback || status.includes("COMPATIBILITY MODE") || status.includes("FALLBACK");
+  const settledStatus = fontsFallback ? "READY / SYSTEM FONT FALLBACK" : compatibilityMode ? status : "READY";
   const stageLabel = ready && fontsReady
     ? displayedProgress < 0.999
       ? compatibilityMode ? "FINALIZING COMPATIBILITY MODE" : "FINALIZING SPACE SCENE"
-      : compatibilityMode ? status : "READY"
+      : settledStatus
     : timedOut ? "LOCKING COMPATIBILITY MODE" : status;
 
   return <div
@@ -107,7 +123,7 @@ export function VibeBootLoader({
     aria-busy={phase !== "ready"}
     style={{ "--boot-progress": displayedProgress }}
   >
-    <section className="vibe-boot__strip" aria-label="Vibe 启动进度">
+    <section className="vibe-boot__strip" aria-label={copy.boot.progressAria}>
       <header className="vibe-boot__header">
         <p>MAPLE <i aria-hidden="true">/</i> VIBE</p>
         <span>STARTUP</span>
@@ -116,7 +132,7 @@ export function VibeBootLoader({
       <div
         className="vibe-boot__track"
         role="progressbar"
-        aria-label="Vibe 启动进度"
+        aria-label={copy.boot.progressAria}
         aria-valuemin="0"
         aria-valuemax="100"
         aria-valuenow={percentage}

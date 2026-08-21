@@ -52,9 +52,10 @@ button { font: inherit; }
 .site-nav a:hover::after,
 .site-nav a:focus-visible::after,
 .site-nav a.is-active::after { transform: scaleX(1); transform-origin: left; }
-.site-nav__replay { min-height: 43px; padding: 0 clamp(14px, 1.8vw, 24px); color: #788692; border: 0; background: transparent; font: 500 14px/1.35 var(--ui); cursor: pointer; transition: color 180ms ease; }
+.site-nav__replay, .site-nav__lang { min-height: 43px; padding: 0 clamp(14px, 1.8vw, 24px); color: #788692; border: 0; background: transparent; font: 500 14px/1.35 var(--ui); cursor: pointer; transition: color 180ms ease; }
 .site-nav__replay:hover,
-.site-nav__replay:focus-visible { color: #dce3e8; }
+.site-nav__replay:focus-visible, .site-nav__lang:hover, .site-nav__lang:focus-visible { color: #dce3e8; }
+.site-nav__lang { min-height: 43px; margin-left: 8px; padding: 0 10px; border: 0; border-bottom: 1px solid var(--line); color: #aeb8c2; }
 .menu-toggle { display: none; color: #cbd4dc; border: 1px solid var(--line); background: rgba(4, 8, 15, 0.56); padding: 8px; }
 .scroll-meter { position: fixed; z-index: 21; top: 0; left: 0; width: calc(var(--scroll-progress) * 100%); height: 2px; background: var(--signal); pointer-events: none; }
 
@@ -392,7 +393,8 @@ button { font: inherit; }
   .site-nav a { min-width: 0; min-height: 54px; padding: 0; display: grid; grid-template-columns: 40px minmax(0, 1fr); justify-content: stretch; gap: 10px; border-inline: 0; border-bottom: 1px solid var(--line); }
   .site-nav__index { font-size: 13px; }
   .site-nav a::after { left: 50px; bottom: -1px; width: 18px; }
-  .site-nav__replay { min-height: 52px; padding: 0 0 0 50px; text-align: left; border-right: 0; border-bottom: 1px solid var(--line); }
+  .site-nav__replay,
+  .site-nav__lang { min-height: 52px; margin-left: 0; padding: 0 0 0 50px; text-align: left; border: 0; border-bottom: 1px solid var(--line); }
   .hero { min-height: 0; padding-top: 120px; padding-bottom: 0; grid-template-columns: 1fr; gap: 18px; }
   .hero::after, .hero-rail, .scene-label:not(.seed-control) { display: none; }
   .seed-control { top: 10%; right: 8%; opacity: 0.88; }

@@ -14,7 +14,7 @@ if (!existsSync(shell)) {
 
 function contentRouteIds(directory) {
   return readdirSync(directory)
-    .filter((filename) => filename.endsWith(".md"))
+    .filter((filename) => filename.endsWith(".md") && !filename.endsWith(".en.md"))
     .map((filename) => {
       const source = readFileSync(path.join(directory, filename), "utf8");
       const frontmatter = source.match(/^---\r?\n([\s\S]*?)\r?\n---/);

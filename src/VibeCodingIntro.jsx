@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocale } from "./i18n.jsx";
+import { CMD_TRANSCRIPT_EN } from "./vibeTranscriptEn.js";
 import "./vibe-intro.css";
 
 const VIBE_OPENING_STEPS = [
@@ -166,7 +168,7 @@ const CMD_TRANSCRIPT = [
   { at: "good-profile-research", kind: "dim", text: "方向不同，但共同点很清楚：从真实问题出发，把想法推进成能运行、验证和继续维护的系统。" },
   { at: "good-profile-research", kind: "dim", text: "你愿意快速实验，也会反复确认当前修改是否破坏已经成立的部分。" },
   { at: "good-profile-research", kind: "dim", text: "所以我不建议只写“全栈开发者”或“AI 工程师”。" },
-  { at: "good-profile-research", kind: "stdout", text: "[recommend] 创意开发者 / AI 应用与 Agent 系统" },
+  { at: "good-profile-research", kind: "stdout", text: "[recommend] 创意型工程师 / AI 应用与 Agent 系统" },
   { at: "good-profile-research", kind: "stdout", text: "[statement] 在 AI、交互与想象力之间，把好奇心变成可以运行、验证、继续生长的作品。" },
   { at: "good-profile-research", kind: "success", text: "你希望保留、弱化或者修正哪些部分？" },
   { at: "good-copy-rough", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"整体方向是对的。但我不想被定义成一个只做 AI 的开发者：AI 和 Agent 是重要的实践方向，我也在意交互、视觉和作品本身的体验。保留好奇、实验、边界和验证，不要写得像简历，也不用把我塑造成一个过于严肃的人。\"" },
@@ -175,7 +177,7 @@ const CMD_TRANSCRIPT = [
   { at: "good-copy-rough", kind: "stdout", text: "[expand] AI systems + interaction + visual experience" },
   { at: "good-copy-rough", kind: "stdout", text: "[guard]  background / right visual space / navigation unchanged" },
   { at: "good-copy-rough", kind: "stdout", text: "[write]  HeroIdentity / content first / neutral styling" },
-  { at: "good-copy-rough", kind: "stdout", text: "[copy]   MAPLE / CREATIVE DEVELOPER / 创意开发者" },
+  { at: "good-copy-rough", kind: "stdout", text: "[copy]   MAPLE / CREATIVE DEVELOPER / 创意型工程师" },
   { at: "good-copy-rough", kind: "stdout", text: "[copy]   AI 应用与 Agent 系统 / 交互与产品实验" },
   { at: "good-copy-rough", kind: "success", text: "PASS 03  identity present / visual styling intentionally unresolved" },
   { at: "good-copy-refined", kind: "prompt", prefix: CMD_PREFIX, text: "vibe \"现在左侧整段介绍几乎都是白字，字号和字重也太接近，所有信息都在争抢注意力。保留 MAPLE 和核心介绍为白色，把身份与辅助说明淡化为灰色；重新拉开字号、字重和间距，再用酸绿色点亮品牌斜杠、细分隔线与少量状态信息。文字内容、背景、右侧留白和星空都不要改。\"" },
@@ -225,6 +227,7 @@ const CMD_TRANSCRIPT = [
 ];
 
 const INDEXED_TRANSCRIPT = CMD_TRANSCRIPT.map((line, transcriptIndex) => ({ ...line, transcriptIndex }));
+const INDEXED_TRANSCRIPT_EN = CMD_TRANSCRIPT_EN.map((line, transcriptIndex) => ({ ...line, transcriptIndex }));
 
 function usePrefersReducedMotion() {
   const [reduced, setReduced] = useState(() => (
@@ -243,6 +246,7 @@ function usePrefersReducedMotion() {
 }
 
 function BadPortfolioPreview({ variant }) {
+  const { copy } = useLocale();
   const hidesProject = variant === "wrap";
 
   return <div className={`vibe-intro__bad-preview bad-portfolio bad-portfolio--${variant}`} aria-hidden="true">
@@ -254,7 +258,7 @@ function BadPortfolioPreview({ variant }) {
     <div className="bad-portfolio__content">
       <p className="bad-portfolio__eyebrow">HELLO / CREATIVE DEVELOPER</p>
       <h2 className="bad-portfolio__title"><span>I make digital</span> <em>experiences.</em></h2>
-      <p className="bad-portfolio__copy">设计、开发与 AI 实验。<br />把模糊想法做成可以使用的界面。</p>
+      <p className="bad-portfolio__copy">{copy.intro.badCopyLine1}<br />{copy.intro.badCopyLine2}</p>
       <span className="bad-portfolio__cta">VIEW MY WORK →</span>
     </div>
     <article className={`bad-portfolio__project${hidesProject ? " is-removed" : ""}`}>
@@ -320,8 +324,8 @@ function getTypingPlan(text, reducedMotion, authoredDelay) {
   return { characters, characterDelay };
 }
 
-function getStepLineGroups(stepId) {
-  const lines = INDEXED_TRANSCRIPT.filter((line) => line.at === stepId);
+function getStepLineGroups(stepId, transcript = INDEXED_TRANSCRIPT) {
+  const lines = transcript.filter((line) => line.at === stepId);
   let promptOffset = -1;
   lines.forEach((line, index) => {
     if (line.kind === "prompt") promptOffset = index;
@@ -376,14 +380,14 @@ function getStepPlaybackDuration(step, groups, reducedMotion) {
   return Math.max(authoredDuration, duration);
 }
 
-function getOpeningPlaybackPlan(reducedMotion) {
+function getOpeningPlaybackPlan(reducedMotion, transcript = INDEXED_TRANSCRIPT) {
   const offsets = [];
   const durations = [];
   let total = 0;
 
   VIBE_OPENING_STEPS.forEach((step) => {
     offsets.push(total);
-    const duration = getStepPlaybackDuration(step, getStepLineGroups(step.id), reducedMotion);
+    const duration = getStepPlaybackDuration(step, getStepLineGroups(step.id, transcript), reducedMotion);
     durations.push(duration);
     total += duration;
   });
@@ -497,7 +501,14 @@ export function VibeCodingOpening({
   journeyWaypoints = [],
 }) {
   const reducedMotion = usePrefersReducedMotion();
-  const playbackPlan = useMemo(() => getOpeningPlaybackPlan(reducedMotion), [reducedMotion]);
+  const { copy, locale } = useLocale();
+  const transcript = locale === "en" ? INDEXED_TRANSCRIPT_EN : INDEXED_TRANSCRIPT;
+  const transcriptRef = useRef(transcript);
+  transcriptRef.current = transcript;
+  const playbackPlan = useMemo(
+    () => getOpeningPlaybackPlan(reducedMotion, transcript),
+    [reducedMotion, transcript],
+  );
   const [stepIndex, setStepIndex] = useState(0);
   const [settled, setSettled] = useState(!active);
   const [commandEntry, setCommandEntry] = useState({ key: "", value: "" });
@@ -526,7 +537,7 @@ export function VibeCodingOpening({
   const step = VIBE_OPENING_STEPS[stepIndex] ?? VIBE_OPENING_STEPS[0];
   const currentStepKey = `${runKey}:${step.id}`;
   const isRunning = active && !settled;
-  const stepGroups = useMemo(() => getStepLineGroups(step.id), [step.id]);
+  const stepGroups = useMemo(() => getStepLineGroups(step.id, transcript), [step.id, transcript]);
   const timelineIsCurrent = timelineEntry.key === currentStepKey;
   const projectedTimeline = timelineIsCurrent ? timelineEntry : {
     key: currentStepKey,
@@ -571,7 +582,7 @@ export function VibeCodingOpening({
     const nextStepIndex = getStepIndexAtPlayhead(clampedPlayhead, playbackPlan);
     const nextStep = VIBE_OPENING_STEPS[nextStepIndex];
     const nextStepKey = `${runKey}:${nextStep.id}`;
-    const nextGroups = getStepLineGroups(nextStep.id);
+    const nextGroups = getStepLineGroups(nextStep.id, transcriptRef.current);
     const nextTimeline = {
       key: nextStepKey,
       ...projectStepTimeline(
@@ -760,7 +771,7 @@ export function VibeCodingOpening({
     const currentIndex = submittedStepIndex;
     const currentStep = VIBE_OPENING_STEPS[currentIndex];
     if (currentStep.command !== expected) return;
-    const currentGroups = getStepLineGroups(currentStep.id);
+    const currentGroups = getStepLineGroups(currentStep.id, transcriptRef.current);
     const responsePlayhead = playbackPlan.offsets[currentIndex]
       + getStepPromptMarkers(currentStep, currentGroups, reducedMotion).enterEndAt;
     const timerToken = commandTimerTokenRef.current + 1;
@@ -833,7 +844,7 @@ export function VibeCodingOpening({
   const thesisMode = step.id === "thesis" ? "thesis" : "promise";
   const terminalResetIndex = getAppliedTerminalResetIndex(stepIndex, timeline);
   const currentStepWasCleared = terminalResetIndex === stepIndex;
-  const historyLines = INDEXED_TRANSCRIPT.filter((line) => {
+  const historyLines = transcript.filter((line) => {
     const lineStepIndex = STEP_INDEX[line.at];
     return lineStepIndex > terminalResetIndex && lineStepIndex < stepIndex;
   });
@@ -898,7 +909,7 @@ export function VibeCodingOpening({
       inert={isRunning ? true : undefined}
     >{journey}</div>}
 
-    {isRunning && <div className="vibe-intro" role="region" aria-label="Vibe Coding 开场演示">
+    {isRunning && <div className="vibe-intro" role="region" aria-label={copy.intro.regionAria}>
       <span className="vibe-intro__progress" aria-hidden="true" />
       <p className="vibe-intro__scroll-status" aria-hidden="true">
         <span>AUTO PLAY / SCROLL TO SCRUB</span>
@@ -911,7 +922,7 @@ export function VibeCodingOpening({
 
       <aside
         className="vibe-intro__conversation"
-        aria-label="Vibe Coding CMD 记录"
+        aria-label={copy.intro.cmdAria}
         data-typing-state={timeline.phase}
       >
         <div className="vibe-intro__cmd-titlebar">
@@ -950,9 +961,9 @@ export function VibeCodingOpening({
               }}
               autoComplete="off"
               spellCheck="false"
-              aria-label={`输入演示命令：${step.command}`}
+              aria-label={copy.intro.commandInputAria(step.command)}
             />
-            <button className="vibe-intro__cmd-submit sr-only" type="submit">运行命令</button>
+            <button className="vibe-intro__cmd-submit sr-only" type="submit">{copy.intro.runCommand}</button>
           </form> : renderCmdLine(stepGroups.prompt, {
             className: timeline.phase === "typing" ? " is-typing" : timeline.phase === "entering" ? " is-entering" : "",
             typingState: timeline.phase,
@@ -978,16 +989,16 @@ export function VibeCodingOpening({
       >
         <div className="vibe-intro__thesis-copy" key={thesisMode}>
           {thesisMode === "thesis" ? <>
-            <p>你是否厌倦了</p>
-            <strong>无止境的无效交流？</strong>
+            <p>{copy.intro.thesisLead}</p>
+            <strong>{copy.intro.thesisStrong}</strong>
           </> : <>
-            <p>约束、检查点、验证 无需考虑</p>
-            <strong>我帮你<br />把<span className="vibe-intro__thesis-accent">想法</span>变成<span className="vibe-intro__thesis-accent">项目</span></strong>
+            <p>{copy.intro.promiseLead}</p>
+            <strong>{copy.intro.promise.line1}<br />{copy.intro.promise.before}<span className="vibe-intro__thesis-accent">{copy.intro.promise.accent1}</span>{copy.intro.promise.middle}<span className="vibe-intro__thesis-accent">{copy.intro.promise.accent2}</span></strong>
             <button
               className="vibe-intro__thesis-action"
               type="button"
               onClick={beginRecovery}
-              aria-label="执行 clear、revert 和 /new，继续演示"
+              aria-label={copy.intro.thesisActionAria}
             >
               <span className="vibe-intro__thesis-prompt" aria-hidden="true">D:\portfolio&gt;</span>
               <code>clear &amp;&amp; revert &amp;&amp; /new</code>

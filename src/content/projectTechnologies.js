@@ -1,9 +1,9 @@
 export const projectTechnologyGroups = [
-  { id: "agent", eyebrow: "AGENT SYSTEMS", title: "Agent 系统" },
-  { id: "knowledge", eyebrow: "RETRIEVAL / MEMORY", title: "检索、索引与记忆" },
-  { id: "interface", eyebrow: "INTERACTION / MULTIMODAL", title: "交互、渲染与多模态" },
-  { id: "language", eyebrow: "PROGRAMMING LANGUAGES", title: "编程语言" },
-  { id: "integration", eyebrow: "ARCHITECTURE / INTEGRATION", title: "架构与系统集成" },
+  { id: "agent", eyebrow: "AGENT SYSTEMS", title: "Agent 系统", titleEn: "Agent Systems" },
+  { id: "knowledge", eyebrow: "RETRIEVAL / MEMORY", title: "检索、索引与记忆", titleEn: "Retrieval, Indexing & Memory" },
+  { id: "interface", eyebrow: "INTERACTION / MULTIMODAL", title: "交互、渲染与多模态", titleEn: "Interaction, Rendering & Multimodal" },
+  { id: "language", eyebrow: "PROGRAMMING LANGUAGES", title: "编程语言", titleEn: "Programming Languages" },
+  { id: "integration", eyebrow: "ARCHITECTURE / INTEGRATION", title: "架构与系统集成", titleEn: "Architecture & Integration" },
 ];
 
 const technologyGroupByLabel = new Map([
