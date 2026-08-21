@@ -539,8 +539,38 @@ function useReaderDialog(isOpen, onClose, closeRef, rootRef, restoreFocusRef) {
   }, [isOpen, closeRef, restoreFocusRef, rootRef]);
 }
 
-function ContentsIndex({ headings }) {
-  return <aside><span>CONTENTS</span><ol>{headings.map((heading) => <li key={heading.id}><a href={`#${heading.id}`}>{heading.title}</a></li>)}</ol></aside>;
+function ContentsIndex({ headings, readerRef }) {
+  const [activeHeadingId, setActiveHeadingId] = useState(headings[0]?.id ?? null);
+
+  useEffect(() => {
+    const reader = readerRef.current;
+    if (!reader || !headings.length) return undefined;
+    let frame = 0;
+    const updateActiveHeading = () => {
+      const threshold = reader.getBoundingClientRect().top + 150;
+      let nextHeadingId = headings[0].id;
+      headings.forEach((heading) => {
+        const target = reader.querySelector(`[id="${CSS.escape(heading.id)}"]`);
+        if (target?.getBoundingClientRect().top <= threshold) nextHeadingId = heading.id;
+      });
+      setActiveHeadingId((current) => current === nextHeadingId ? current : nextHeadingId);
+    };
+    const scheduleUpdate = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        updateActiveHeading();
+      });
+    };
+    scheduleUpdate();
+    reader.addEventListener("scroll", scheduleUpdate, { passive: true });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      reader.removeEventListener("scroll", scheduleUpdate);
+    };
+  }, [headings, readerRef]);
+
+  return <aside><span>CONTENTS</span><ol>{headings.map((heading) => <li key={heading.id} data-active={activeHeadingId === heading.id ? "true" : undefined}><a href={`#${heading.id}`} aria-current={activeHeadingId === heading.id ? "location" : undefined}>{heading.title}</a></li>)}</ol></aside>;
 }
 
 function ProjectContentsIndex({ project, headings, readerRef }) {
@@ -706,11 +736,40 @@ function ArticleReader({ article, interactive = true, onClose, onContentReady, r
   const { copy, locale } = useLocale();
   useReaderDialog(Boolean(article) && interactive, onClose, closeRef, readerRef, restoreFocusRef);
 
+  useEffect(() => {
+    const reader = readerRef.current;
+    if (!reader || !article) return undefined;
+    const documentRoot = reader.querySelector(".article-reader__document");
+    let frame = 0;
+    const updateProgress = () => {
+      const scrollRange = Math.max(0, reader.scrollHeight - reader.clientHeight);
+      const progress = scrollRange > 0 ? Math.min(1, Math.max(0, reader.scrollTop / scrollRange)) : 0;
+      reader.style.setProperty("--article-read-progress", String(progress));
+    };
+    const scheduleUpdate = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        updateProgress();
+      });
+    };
+    const resizeObserver = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(scheduleUpdate);
+    if (documentRoot) resizeObserver?.observe(documentRoot);
+    scheduleUpdate();
+    reader.addEventListener("scroll", scheduleUpdate, { passive: true });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      resizeObserver?.disconnect();
+      reader.removeEventListener("scroll", scheduleUpdate);
+      reader.style.removeProperty("--article-read-progress");
+    };
+  }, [article]);
+
   if (!article) return null;
 
   return <div ref={readerRef} className="article-reader content-reader" role={interactive ? "dialog" : undefined} aria-modal={interactive ? "true" : undefined} aria-labelledby="article-reader-title" aria-hidden={interactive ? undefined : "true"} inert={interactive ? undefined : true}>
     <div className="article-reader__bar">
-      <p>MAPLE / FIELD NOTES / {article.index}</p>
+      <p>MAPLE / FIELD NOTES / <span>{article.index}</span></p>
       <button ref={closeRef} type="button" onClick={onClose} aria-label={copy.reader.closeArticle}><span>{copy.reader.backHome}</span><X size={21} aria-hidden="true" /></button>
     </div>
     <article className="article-reader__document">
@@ -719,7 +778,7 @@ function ArticleReader({ article, interactive = true, onClose, onContentReady, r
         <div><span>ARTICLE / {article.index}</span><h2 id="article-reader-title">{article.title}</h2><p>{article.excerpt}</p></div>
       </header>
       <div className="article-reader__body">
-        <ContentsIndex headings={article.headings} />
+        <ContentsIndex headings={article.headings} readerRef={readerRef} />
         <ReaderMarkdownBody key={`${locale}:${article.id}`} item={article} endLabel={`END OF ARTICLE / ${article.index}`} onReady={onContentReady} />
       </div>
     </article>
@@ -731,6 +790,125 @@ function ProjectReader({ project, interactive = true, onClose, onContentReady })
   const readerRef = useRef(null);
   const { copy, locale } = useLocale();
   useReaderDialog(Boolean(project) && interactive, onClose, closeRef, readerRef);
+
+  useLayoutEffect(() => {
+    const reader = readerRef.current;
+    if (!reader || !project) return undefined;
+    const hero = reader.querySelector(".project-reader__hero");
+    const body = reader.querySelector(".project-reader__body");
+    const bar = reader.querySelector(".project-reader__bar");
+    if (!hero || !body || !bar) return undefined;
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const motionProperties = [
+      "--project-cover-left-x",
+      "--project-cover-right-x",
+      "--project-cover-copy-opacity",
+      "--project-cover-blur",
+      "--project-cover-media-scale",
+      "--project-cover-brightness",
+      "--project-body-entry-y",
+      "--project-body-entry-opacity",
+    ];
+    let frame = 0;
+    let transitionStart = 0;
+    let transitionEnd = 1;
+    let readerWidth = reader.clientWidth;
+    let readerHeight = reader.clientHeight;
+
+    const clearMotionProperties = () => {
+      motionProperties.forEach((property) => reader.style.removeProperty(property));
+    };
+
+    const measureTransition = () => {
+      const readerRect = reader.getBoundingClientRect();
+      const bodyRect = body.getBoundingClientRect();
+      readerWidth = reader.clientWidth;
+      readerHeight = reader.clientHeight;
+      const bodyTop = bodyRect.top - readerRect.top + reader.scrollTop;
+      transitionStart = Math.max(0, bodyTop - readerHeight);
+      transitionEnd = Math.max(
+        transitionStart + 1,
+        bodyTop - bar.offsetHeight,
+      );
+    };
+
+    const renderTransition = () => {
+      if (reducedMotion.matches) {
+        if (reader.dataset.coverTransition !== "static") clearMotionProperties();
+        reader.dataset.coverTransition = "static";
+        return;
+      }
+
+      const progress = Math.min(1, Math.max(0, (reader.scrollTop - transitionStart) / Math.max(1, transitionEnd - transitionStart)));
+      const compactMotion = readerWidth <= 899 || readerHeight <= 660;
+      const initialBodyTravel = compactMotion ? 38 : 82;
+      if (progress <= 0.04) {
+        if (reader.dataset.coverTransition !== "top") clearMotionProperties();
+        reader.style.setProperty("--project-body-entry-y", `${initialBodyTravel}px`);
+        reader.style.setProperty("--project-body-entry-opacity", "0.28");
+        reader.dataset.coverTransition = "top";
+        return;
+      }
+      if (progress >= 0.999) {
+        if (reader.dataset.coverTransition !== "content") clearMotionProperties();
+        reader.dataset.coverTransition = "content";
+        return;
+      }
+
+      const smoothstep = (from, to, value) => {
+        const normalized = Math.min(1, Math.max(0, (value - from) / Math.max(0.0001, to - from)));
+        return normalized * normalized * (3 - 2 * normalized);
+      };
+      const split = smoothstep(0.04, 0.86, progress);
+      const fade = smoothstep(0.3, 0.94, progress);
+      const blur = smoothstep(0.12, 1, progress);
+      const bodyReveal = smoothstep(0.18, 0.86, progress);
+      const leftTravel = compactMotion ? Math.min(42, readerWidth * 0.055) : Math.min(154, readerWidth * 0.09);
+      const rightTravel = compactMotion ? Math.min(50, readerWidth * 0.065) : Math.min(184, readerWidth * 0.105);
+      const blurRadius = (compactMotion ? 3 : 6) * blur;
+      const bodyTravel = initialBodyTravel * (1 - bodyReveal);
+
+      reader.style.setProperty("--project-cover-left-x", `${-leftTravel * split}px`);
+      reader.style.setProperty("--project-cover-right-x", `${rightTravel * split}px`);
+      reader.style.setProperty("--project-cover-copy-opacity", String(1 - fade));
+      reader.style.setProperty("--project-cover-blur", `${blurRadius}px`);
+      reader.style.setProperty("--project-cover-media-scale", String(1 + 0.028 * blur));
+      reader.style.setProperty("--project-cover-brightness", String(0.82 - 0.1 * blur));
+      reader.style.setProperty("--project-body-entry-y", `${bodyTravel}px`);
+      reader.style.setProperty("--project-body-entry-opacity", String(0.28 + 0.72 * bodyReveal));
+      reader.dataset.coverTransition = "active";
+    };
+
+    const scheduleTransition = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        renderTransition();
+      });
+    };
+
+    const resizeObserver = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => {
+      measureTransition();
+      scheduleTransition();
+    });
+    resizeObserver?.observe(reader);
+    resizeObserver?.observe(hero);
+    resizeObserver?.observe(bar);
+    reader.addEventListener("scroll", scheduleTransition, { passive: true });
+    reducedMotion.addEventListener?.("change", scheduleTransition);
+    measureTransition();
+    renderTransition();
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      resizeObserver?.disconnect();
+      reader.removeEventListener("scroll", scheduleTransition);
+      reducedMotion.removeEventListener?.("change", scheduleTransition);
+      clearMotionProperties();
+      delete reader.dataset.coverTransition;
+    };
+  }, [project]);
 
   if (!project) return null;
 
