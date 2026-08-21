@@ -3,12 +3,14 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
 import { createSeededRandom, normalizeSimulationSeed, seedToUint32 } from "./seededRandom.js";
+import { useLocale } from "./i18n.jsx";
 
 const BENNU_MODEL_URL = `${import.meta.env.BASE_URL}assets/models/bennu.glb`;
 const BENNU_MODEL_BYTES = 859980;
 const BENNU_LOAD_TIMEOUT_MS = 6000;
 const bennuProgressListeners = new Set();
 let bennuAssetPromise;
+let bennuAssetSettled = false;
 
 function disposeImportedScene(root, disposeTextures = false, preservedTexture = null) {
   root.traverse((node) => {
@@ -52,7 +54,7 @@ function normalizeBennuAsset(gltf) {
 }
 
 export function preloadAsteroidAssets(onProgress) {
-  if (onProgress) bennuProgressListeners.add(onProgress);
+  if (onProgress && !bennuAssetSettled) bennuProgressListeners.add(onProgress);
 
   if (!bennuAssetPromise) {
     bennuAssetPromise = new Promise((resolve) => {
@@ -89,13 +91,19 @@ export function preloadAsteroidAssets(onProgress) {
         },
         (error) => settle({ mode: "fallback", reason: "network", error }),
       );
-    }).finally(() => bennuProgressListeners.clear());
+    }).finally(() => {
+      bennuAssetSettled = true;
+      bennuProgressListeners.clear();
+    });
   }
 
   return bennuAssetPromise;
 }
 
-export default function AsteroidScene({ onProgress, onReady }) {
+export default function AsteroidScene({ onProgress, onReady, suspended = false }) {
+  const { copy } = useLocale();
+  const copyRef = useRef(copy);
+  copyRef.current = copy;
   const canvasRef = useRef(null);
   const seedLabelRef = useRef(null);
   const seedTriggerRef = useRef(null);
@@ -105,6 +113,8 @@ export default function AsteroidScene({ onProgress, onReady }) {
   const currentSeedRef = useRef("");
   const onProgressRef = useRef(onProgress);
   const onReadyRef = useRef(onReady);
+  const suspendedRef = useRef(suspended);
+  const syncAnimationRef = useRef(() => {});
   const [seedEditorOpen, setSeedEditorOpen] = useState(false);
   const [seedInput, setSeedInput] = useState("");
 
@@ -112,6 +122,11 @@ export default function AsteroidScene({ onProgress, onReady }) {
     onProgressRef.current = onProgress;
     onReadyRef.current = onReady;
   }, [onProgress, onReady]);
+
+  useEffect(() => {
+    suspendedRef.current = suspended;
+    syncAnimationRef.current();
+  }, [suspended]);
 
   const openSeedEditor = () => {
     setSeedInput(currentSeedRef.current);
@@ -166,6 +181,13 @@ export default function AsteroidScene({ onProgress, onReady }) {
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.2;
     renderer.autoClear = false;
+
+    const bennuAssetReady = preloadAsteroidAssets(({ ratio }) => {
+      onProgressRef.current?.({
+        progress: ratio === null ? 0.22 : 0.22 + ratio * 0.58,
+        status: "LOADING BENNU MODEL",
+      });
+    });
 
     const systemGroup = new THREE.Group();
     systemGroup.rotation.set(-0.12, -0.28, 0.05);
@@ -428,21 +450,16 @@ export default function AsteroidScene({ onProgress, onReady }) {
       onReadyRef.current?.({ mode: preparedMode });
     };
     const modelTints = [0xc5d2dc, 0xa8bac8, 0xd6dfe5];
-    preloadAsteroidAssets(({ ratio }) => {
-      onProgressRef.current?.({
-        progress: ratio === null ? 0.22 : 0.22 + ratio * 0.58,
-        status: "LOADING BENNU MODEL",
-      });
-    }).then((asset) => {
+    bennuAssetReady.then((asset) => {
       if (sceneDisposed) return;
       if (asset.mode === "bennu") {
         if (asset.texture) {
           asset.texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
           asset.texture.needsUpdate = true;
         }
+        const replacementGeometry = asset.geometry.clone();
         bodies.forEach((body, index) => {
           const previousGeometry = body.geometry;
-          const replacementGeometry = asset.geometry.clone();
           body.geometry = replacementGeometry;
           body.mesh.geometry = replacementGeometry;
           body.mesh.scale.setScalar(initialState[index].radius);
@@ -633,7 +650,7 @@ export default function AsteroidScene({ onProgress, onReady }) {
       currentSeedRef.current = activeSeed;
       if (seedLabelRef.current) seedLabelRef.current.textContent = `SEEDS / ${displaySeed}`;
       if (seedTriggerRef.current) {
-        seedTriggerRef.current.setAttribute("aria-label", `当前三体初始方向 seed 为 ${activeSeed}，点击修改`);
+        seedTriggerRef.current.setAttribute("aria-label", copyRef.current.seed.triggerAria(activeSeed));
       }
     };
 
@@ -865,7 +882,8 @@ export default function AsteroidScene({ onProgress, onReady }) {
     const pointer = new THREE.Vector2();
     const pointerTarget = new THREE.Vector2();
     let cameraDistance = 8.9;
-    let isVisible = true;
+    let isVisible = false;
+    let syncAnimation = () => {};
     const sceneFocusHost = canvas.closest(".opening-stage");
     const storedSceneFocus = sceneFocusHost?.dataset.portfolioSceneFocus;
     let requestedVisibleFocusX = storedSceneFocus === undefined
@@ -923,7 +941,10 @@ export default function AsteroidScene({ onProgress, onReady }) {
     const resize = () => {
       const width = canvas.clientWidth;
       const height = canvas.clientHeight;
-      if (!width || !height) return;
+      if (!width || !height) {
+        syncAnimation();
+        return;
+      }
       viewWidth = width;
       viewHeight = height;
       renderer.setSize(width, height, false);
@@ -936,6 +957,7 @@ export default function AsteroidScene({ onProgress, onReady }) {
         ? 9.2
         : THREE.MathUtils.clamp(7.9 * (height / previousVisualHeight), 8.6, 9.5);
       applyCameraViewOffset();
+      syncAnimation();
     };
     const resizeObserver = new ResizeObserver(resize);
     resizeObserver.observe(canvas);
@@ -943,17 +965,33 @@ export default function AsteroidScene({ onProgress, onReady }) {
 
     const intersectionObserver = new IntersectionObserver(([entry]) => {
       isVisible = entry.isIntersecting;
+      syncAnimation();
     });
     intersectionObserver.observe(canvas);
 
     let frame;
     let previousTimestamp;
+    const stopAnimation = () => {
+      if (frame !== undefined) window.cancelAnimationFrame(frame);
+      frame = undefined;
+      previousTimestamp = undefined;
+    };
+    const shouldAnimate = () => (
+      !sceneDisposed
+      && !suspendedRef.current
+      && isVisible
+      && !document.hidden
+    );
     const animate = (timestamp) => {
+      frame = undefined;
+      if (!shouldAnimate()) {
+        previousTimestamp = undefined;
+        return;
+      }
       frame = window.requestAnimationFrame(animate);
       if (previousTimestamp === undefined) previousTimestamp = timestamp;
       const rawDelta = Math.min((timestamp - previousTimestamp) * 0.001, 0.04);
       previousTimestamp = timestamp;
-      if (!isVisible || document.hidden) return;
 
       const motionScale = reduceMotion ? 0.22 : 1.45;
       const delta = rawDelta * motionScale;
@@ -996,20 +1034,33 @@ export default function AsteroidScene({ onProgress, onReady }) {
       renderSceneFrame();
       reportSceneReady();
     };
-    frame = window.requestAnimationFrame(animate);
+    syncAnimation = () => {
+      if (!shouldAnimate()) {
+        stopAnimation();
+        return;
+      }
+      if (frame === undefined) frame = window.requestAnimationFrame(animate);
+    };
+    const onVisibilityChange = () => syncAnimation();
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    syncAnimationRef.current = syncAnimation;
+    syncAnimation();
 
     return () => {
       sceneDisposed = true;
       applySeedRef.current = null;
-      window.cancelAnimationFrame(frame);
+      syncAnimationRef.current = () => {};
+      stopAnimation();
       window.removeEventListener("pointermove", onPointerMove, pointerMoveOptions);
       window.removeEventListener("blur", onPointerLeave);
       document.documentElement.removeEventListener("pointerleave", onPointerLeave);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       sceneFocusHost?.removeEventListener("portfolio:scene-focus", onPortfolioSceneFocus);
       resizeObserver.disconnect();
       intersectionObserver.disconnect();
+      const bodyGeometries = new Set(bodies.map((body) => body.geometry));
+      bodyGeometries.forEach((geometry) => geometry.dispose());
       bodies.forEach((body) => {
-        body.geometry.dispose();
         body.material.dispose();
         body.trailGeometry.dispose();
         body.trailMaterial.dispose();
@@ -1057,7 +1108,7 @@ export default function AsteroidScene({ onProgress, onReady }) {
             maxLength={32}
             autoComplete="off"
             spellCheck="false"
-            aria-label="输入用于定义三体初始方向的 seed"
+            aria-label={copy.seed.inputAria}
             placeholder="ENTER SEED"
             onChange={(event) => setSeedInput(event.target.value)}
             onKeyDown={(event) => {

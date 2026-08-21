@@ -6,7 +6,7 @@ headline: "Maple Portfolio：这个网站没有一开始就想清楚"
 year: "2026"
 category: "FRONTEND / 交互作品集"
 excerpt: "没有一张设计稿从第一天沿用到现在。这个网站是在一次次生成、试用、否定和回退里，慢慢找到自己的样子。"
-cover: "/assets/projects/maple-portfolio.png"
+cover: "/assets/projects/maple-portfolio.webp"
 status: "ACTIVE DEVELOPMENT / 持续打磨中"
 technologies: ["JavaScript", "React 19", "Three.js", "WebGL", "Vite 6", "React Markdown"]
 linkUrl: "https://github.com/Maple127667/Maple127667.github.io"

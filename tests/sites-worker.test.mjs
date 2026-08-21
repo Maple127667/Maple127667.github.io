@@ -3,7 +3,14 @@ import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 import worker, { createWorker } from "../worker/index.js";
 
-const contentWorker = createWorker(["/articles/vibe-coding", "/projects/search-agent"]);
+const contentWorker = createWorker([
+  "/blog",
+  "/blog/2026-08-03",
+  "/blog/2025-10-01",
+  "/blog/2023-10-12",
+  "/articles/vibe-coding",
+  "/projects/search-agent",
+]);
 
 test("serves existing static assets without a fallback", async () => {
   const calls = [];
@@ -41,6 +48,111 @@ test("serves the app shell for a known shareable content route", async () => {
 
   assert.equal(response.status, 200);
   assert.deepEqual(calls, ["/articles/vibe-coding?source=share", "/index.html"]);
+});
+
+test("serves the app shell for the blog route", async () => {
+  const response = await contentWorker.fetch(
+    new Request("https://example.test/blog", {
+      headers: { accept: "text/html" },
+    }),
+    {
+      ASSETS: {
+        fetch: async (request) => {
+          const pathname = new URL(request.url).pathname;
+          return new Response(pathname === "/index.html" ? "app" : "missing", {
+            status: pathname === "/index.html" ? 200 : 404,
+          });
+        },
+      },
+    },
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), "app");
+});
+
+test("serves the app shell for a published blog post", async () => {
+  const response = await contentWorker.fetch(
+    new Request("https://example.test/blog/2025-10-01?source=share", {
+      headers: { accept: "text/html" },
+    }),
+    {
+      ASSETS: {
+        fetch: async (request) => {
+          const pathname = new URL(request.url).pathname;
+          return new Response(pathname === "/index.html" ? "app" : "missing", {
+            status: pathname === "/index.html" ? 200 : 404,
+          });
+        },
+      },
+    },
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), "app");
+});
+
+test("serves the app shell for the latest blog post", async () => {
+  const response = await contentWorker.fetch(
+    new Request("https://example.test/blog/2026-08-03", {
+      headers: { accept: "text/html" },
+    }),
+    {
+      ASSETS: {
+        fetch: async (request) => {
+          const pathname = new URL(request.url).pathname;
+          return new Response(pathname === "/index.html" ? "app" : "missing", {
+            status: pathname === "/index.html" ? 200 : 404,
+          });
+        },
+      },
+    },
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), "app");
+});
+
+test("serves the app shell for the long-form blog post", async () => {
+  const response = await contentWorker.fetch(
+    new Request("https://example.test/blog/2023-10-12", {
+      headers: { accept: "text/html" },
+    }),
+    {
+      ASSETS: {
+        fetch: async (request) => {
+          const pathname = new URL(request.url).pathname;
+          return new Response(pathname === "/index.html" ? "app" : "missing", {
+            status: pathname === "/index.html" ? 200 : 404,
+          });
+        },
+      },
+    },
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), "app");
+});
+
+test("keeps unpublished blog slugs as true 404 pages", async () => {
+  const response = await contentWorker.fetch(
+    new Request("https://example.test/blog/not-published", {
+      headers: { accept: "text/html" },
+    }),
+    {
+      ASSETS: {
+        fetch: async (request) => {
+          const pathname = new URL(request.url).pathname;
+          return new Response(pathname === "/index.html" ? "app" : "missing", {
+            status: pathname === "/index.html" ? 200 : 404,
+          });
+        },
+      },
+    },
+  );
+
+  assert.equal(response.status, 404);
+  assert.equal(response.headers.get("x-robots-tag"), "noindex");
 });
 
 test("returns the app shell with a true 404 status for an unknown page", async () => {
@@ -95,4 +207,8 @@ test("emits the files required by Sites packaging", async () => {
   const generatedWorker = await readFile(new URL("../dist/server/index.js", import.meta.url), "utf8");
   assert.match(generatedWorker, /\/articles\/vibe-coding/);
   assert.match(generatedWorker, /\/projects\/search-agent/);
+  assert.match(generatedWorker, /\/blog/);
+  assert.match(generatedWorker, /\/blog\/2026-08-03/);
+  assert.match(generatedWorker, /\/blog\/2025-10-01/);
+  assert.match(generatedWorker, /\/blog\/2023-10-12/);
 });

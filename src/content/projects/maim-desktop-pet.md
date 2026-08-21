@@ -6,7 +6,7 @@ headline: "MaiM Desktop Pet：让角色留在桌面，也给工作留出空间"
 year: "持续开发"
 category: "DESKTOP / LIVE2D"
 excerpt: "我想做的不是一张始终浮在屏幕上的立绘，而是一个会回应、会陪伴，也知道什么时候该安静下来的桌面角色。"
-cover: "/assets/projects/maim-desktop-pet.png"
+cover: "/assets/projects/maim-desktop-pet.webp"
 coverFit: "contain"
 coverPosition: "center 18%"
 coverBackground: "#06080d"
@@ -36,7 +36,7 @@ MaiM Desktop Pet 最初是我的毕业设计，也是我对这个问题做出的
 
 但窗口出现了，不代表角色真的存在。
 
-如果它的动作和消息没有关系，用户点击以后也得不到回应，那么再精致的立绘，最后仍然只是桌面上的一层装饰。它会被看见，却很难让人产生互动的理由。
+如果它的动作和消息没有关系，用户点击以后也得不到回应，那么再精致的立绘，最后仍然只是桌面上的一层装饰。它会被看见，却很难让人找到互动的理由。
 
 我希望麦麦待在桌面上时，不需要用户先打开一个完整的聊天软件，也不需要进入另一个页面。想和它说话时，可以直接叫住它；暂时不需要时，它就留在一旁，不抢走正在进行的工作。
 

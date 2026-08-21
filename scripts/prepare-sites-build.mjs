@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
+import { BLOG_POSTS } from "../src/content/blogPosts.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dist = path.join(root, "dist");
@@ -16,7 +17,7 @@ for (const file of [index, worker, hosting]) {
 
 function contentRoutes(directory, collection) {
   return readdirSync(directory)
-    .filter((filename) => filename.endsWith(".md"))
+    .filter((filename) => filename.endsWith(".md") && !filename.endsWith(".en.md"))
     .map((filename) => {
       const source = readFileSync(path.join(directory, filename), "utf8");
       const frontmatter = source.match(/^---\r?\n([\s\S]*?)\r?\n---/);
@@ -28,6 +29,8 @@ function contentRoutes(directory, collection) {
 }
 
 const knownRoutes = [
+  "/blog",
+  ...BLOG_POSTS.map((post) => post.href),
   ...contentRoutes(path.join(root, "src", "content", "articles"), "articles"),
   ...contentRoutes(path.join(root, "src", "content", "projects"), "projects"),
 ].sort();

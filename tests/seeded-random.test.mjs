@@ -28,5 +28,5 @@ test("the asteroid scene exposes a hidden seed editor and resets cycle one", asy
   assert.match(source, /cycleRandom = createSeededRandom\(cycleKey\);/);
   assert.match(source, /url\.searchParams\.set\("seed", activeSeed\)/);
   assert.match(source, /cycleNumber = 0;[\s\S]*resetSimulation\(\);/);
-  assert.match(source, /aria-label="输入用于定义三体初始方向的 seed"/);
+  assert.match(source, /aria-label=\{copy\.seed\.inputAria\}/);
 });

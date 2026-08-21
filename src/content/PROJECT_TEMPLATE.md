@@ -8,7 +8,7 @@ year: "2026"
 category: "CREATIVE DEVELOPMENT"
 excerpt: "用于首页项目卡片和详情页头部的项目摘要。"
 # 图片放在 public/assets 下，并从 /assets 开始填写
-cover: "/assets/projects/project-cover.png"
+cover: "/assets/projects/project-cover.webp"
 # 项目在首页贡献给最终技术栈页面的标签
 technologies: ["Primary Language", "Framework / UI", "Signature Component", "Architecture"]
 # 首页大卡片的图文方向：left 或 right

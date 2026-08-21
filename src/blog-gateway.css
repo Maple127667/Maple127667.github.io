@@ -1,0 +1,250 @@
+.blog-gateway {
+  --gateway-blue: #55afe8;
+  --gateway-paper: #ffffff;
+  --gateway-fold-front: #101a26;
+  --gateway-fold-edge: #24384a;
+  --gateway-shadow: rgba(0, 0, 0, 0.34);
+  --gateway-reveal-size: clamp(142px, 17vw, 220px);
+  --gateway-reveal-scale: 0.1;
+  --gateway-fold-scale: 0.08;
+
+  position: fixed;
+  z-index: 95;
+  inset: 0;
+  isolation: isolate;
+  contain: layout style;
+  pointer-events: none;
+}
+
+.blog-gateway[data-target-theme="dark"] {
+  --gateway-paper: #07111f;
+  --gateway-fold-front: #dce6f0;
+  --gateway-fold-edge: #9fb2c4;
+  --gateway-shadow: rgba(0, 0, 0, 0.5);
+}
+
+.blog-gateway[data-phase="lifted"] {
+  --gateway-reveal-scale: 0.28;
+  --gateway-fold-scale: 0.2;
+}
+
+.blog-gateway[data-phase="revealed"],
+.blog-gateway[data-phase="turning"] {
+  --gateway-reveal-scale: 1;
+  --gateway-fold-scale: 0.38;
+}
+
+.blog-gateway__underpage,
+.blog-gateway__fold {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  width: var(--gateway-reveal-size);
+  aspect-ratio: 1;
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+  transform-origin: 100% 100%;
+  pointer-events: none;
+}
+
+.blog-gateway__underpage {
+  z-index: 1;
+  opacity: 0.96;
+  background:
+    linear-gradient(-45deg, transparent calc(50% - 0.7px), var(--gateway-blue) 50%, transparent calc(50% + 0.7px)),
+    var(--gateway-paper);
+  filter: drop-shadow(-8px -8px 16px var(--gateway-shadow));
+  transform: scale(var(--gateway-reveal-scale));
+  transition:
+    transform 360ms cubic-bezier(0.22, 0.72, 0.2, 1),
+    opacity 180ms ease;
+}
+
+.blog-gateway__trigger {
+  position: fixed;
+  z-index: 3;
+  right: max(4px, env(safe-area-inset-right));
+  bottom: max(4px, env(safe-area-inset-bottom));
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  overflow: visible;
+  color: inherit;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.blog-gateway__trigger:disabled {
+  cursor: default;
+}
+
+.blog-gateway__trigger:focus-visible {
+  outline: 0;
+  background: linear-gradient(
+    -45deg,
+    transparent calc(50% - 1px),
+    var(--gateway-blue) 50%,
+    transparent calc(50% + 1px)
+  );
+}
+
+.blog-gateway__fold {
+  z-index: 2;
+  background: linear-gradient(135deg, var(--gateway-fold-edge), var(--gateway-fold-front) 64%);
+  filter: drop-shadow(-5px -5px 8px rgba(0, 0, 0, 0.3));
+  transform: scale(var(--gateway-fold-scale)) translate(-3px, -3px);
+  transition:
+    transform 360ms cubic-bezier(0.22, 0.72, 0.2, 1),
+    filter 220ms ease;
+}
+
+.blog-gateway__trigger:hover + .blog-gateway__fold,
+.blog-gateway__trigger:focus-visible + .blog-gateway__fold {
+  filter: drop-shadow(-7px -7px 11px rgba(0, 0, 0, 0.38));
+}
+
+.blog-gateway__turn-sheet {
+  position: fixed;
+  z-index: 4;
+  inset: 0;
+  visibility: hidden;
+  opacity: 0;
+  background: var(--gateway-paper);
+  clip-path: polygon(100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%);
+  pointer-events: none;
+}
+
+.blog-gateway[data-phase="turning"] {
+  pointer-events: auto;
+}
+
+.blog-gateway[data-phase="turning"] .blog-gateway__trigger,
+.blog-gateway[data-phase="settling"] .blog-gateway__trigger {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.blog-gateway[data-phase="turning"] .blog-gateway__turn-sheet {
+  visibility: visible;
+  opacity: 1;
+  animation: blog-gateway-page-turn 820ms cubic-bezier(0.72, 0, 0.18, 1) both;
+  filter: drop-shadow(-18px -14px 30px var(--gateway-shadow));
+  will-change: clip-path;
+}
+
+.blog-gateway[data-phase="settling"] {
+  pointer-events: auto;
+}
+
+.blog-gateway[data-phase="settling"] .blog-gateway__underpage,
+.blog-gateway[data-phase="settling"] .blog-gateway__fold {
+  visibility: hidden;
+}
+
+.blog-gateway[data-phase="settling"] .blog-gateway__turn-sheet {
+  visibility: visible;
+  clip-path: polygon(0 100%, 0 0, 100% 0, 100% 100%, 0 100%);
+  animation: blog-gateway-page-settle 220ms ease-out both;
+  will-change: opacity;
+}
+
+.blog-gateway[data-active="false"]:not([data-phase="turning"]):not([data-phase="settling"]) {
+  visibility: hidden;
+}
+
+.blog-gateway[data-active="false"]:not([data-phase="turning"]):not([data-phase="settling"]) .blog-gateway__trigger {
+  pointer-events: none;
+}
+
+.blog-gateway__sr {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+@keyframes blog-gateway-page-turn {
+  0% {
+    clip-path: polygon(
+      calc(100% - var(--gateway-reveal-size)) 100%,
+      100% calc(100% - var(--gateway-reveal-size)),
+      100% calc(100% - var(--gateway-reveal-size)),
+      100% 100%,
+      calc(100% - var(--gateway-reveal-size)) 100%
+    );
+  }
+
+  58% {
+    clip-path: polygon(15% 100%, 100% 15%, 100% 15%, 100% 100%, 15% 100%);
+  }
+
+  100% {
+    clip-path: polygon(0 100%, 0 0, 100% 0, 100% 100%, 0 100%);
+  }
+}
+
+@keyframes blog-gateway-page-settle {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@media (max-width: 760px) {
+  .blog-gateway {
+    --gateway-reveal-size: clamp(124px, 34vw, 180px);
+  }
+
+  .blog-gateway__trigger {
+    width: 52px;
+    height: 52px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blog-gateway__underpage,
+  .blog-gateway__fold {
+    transition: none;
+  }
+
+  .blog-gateway[data-phase="turning"] .blog-gateway__turn-sheet {
+    animation: blog-gateway-cover-reduced 1ms linear both;
+    filter: none;
+  }
+
+  .blog-gateway[data-phase="settling"] .blog-gateway__turn-sheet {
+    animation-duration: 1ms;
+  }
+}
+
+@keyframes blog-gateway-cover-reduced {
+  from {
+    opacity: 0;
+    clip-path: polygon(0 100%, 0 0, 100% 0, 100% 100%, 0 100%);
+  }
+  to {
+    opacity: 1;
+    clip-path: polygon(0 100%, 0 0, 100% 0, 100% 100%, 0 100%);
+  }
+}
+
+@media (forced-colors: active) {
+  .blog-gateway__underpage,
+  .blog-gateway__fold,
+  .blog-gateway__turn-sheet {
+    forced-color-adjust: auto;
+    background: Canvas;
+  }
+
+  .blog-gateway__trigger:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+}

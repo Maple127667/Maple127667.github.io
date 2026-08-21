@@ -3,6 +3,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from "
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
+import { BLOG_POSTS } from "../src/content/blogPosts.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const client = path.join(root, "dist", "client");
@@ -14,7 +15,7 @@ if (!existsSync(shell)) {
 
 function contentRouteIds(directory) {
   return readdirSync(directory)
-    .filter((filename) => filename.endsWith(".md"))
+    .filter((filename) => filename.endsWith(".md") && !filename.endsWith(".en.md"))
     .map((filename) => {
       const source = readFileSync(path.join(directory, filename), "utf8");
       const frontmatter = source.match(/^---\r?\n([\s\S]*?)\r?\n---/);
@@ -29,6 +30,16 @@ const routes = [
   ...contentRouteIds(path.join(root, "src", "content", "projects")).map((id) => ["projects", id]),
 ];
 
+const blogDirectory = path.join(client, "blog");
+mkdirSync(blogDirectory, { recursive: true });
+copyFileSync(shell, path.join(blogDirectory, "index.html"));
+
+for (const post of BLOG_POSTS) {
+  const routeDirectory = path.join(blogDirectory, encodeURIComponent(post.slug));
+  mkdirSync(routeDirectory, { recursive: true });
+  copyFileSync(shell, path.join(routeDirectory, "index.html"));
+}
+
 for (const [collection, id] of routes) {
   const routeDirectory = path.join(client, collection, encodeURIComponent(id));
   mkdirSync(routeDirectory, { recursive: true });
@@ -36,4 +47,4 @@ for (const [collection, id] of routes) {
 }
 
 copyFileSync(shell, path.join(client, "404.html"));
-console.log(`Prepared GitHub Pages build with ${routes.length} content route shells`);
+console.log(`Prepared GitHub Pages build with ${routes.length + BLOG_POSTS.length + 1} route shells`);

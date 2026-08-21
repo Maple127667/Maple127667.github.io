@@ -1,8 +1,5 @@
-import { Component, lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Component, lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import { visit } from "unist-util-visit";
 import {
   ArrowDown,
   ArrowLeft,
@@ -18,14 +15,20 @@ import {
   articles,
   featuredArticle,
   formatArticleDate,
+  getArticles,
 } from "./content/articles/index.js";
-import { profile, technologyGroups } from "./content/profile.js";
-import { projects } from "./content/projects/index.js";
+import { profile, profileEn, technologyGroups } from "./content/profile.js";
+import { getProjects, projects } from "./content/projects/index.js";
+import { getBlogPostBySlug } from "./content/blogPosts.js";
+import { LocaleProvider, useLocale } from "./i18n.jsx";
 import { PortfolioJourney } from "./PortfolioJourney.jsx";
 import { getPortfolioJourneyMetrics } from "./portfolioJourneyTimeline.js";
 import { VibeCodingOpening } from "./VibeCodingIntro.jsx";
 import { VibeBootLoader } from "./VibeBootLoader.jsx";
 import StarField from "./StarField.jsx";
+import { BlogCornerGateway } from "./BlogCornerGateway.jsx";
+import { subscribeCriticalResources } from "./criticalResourceLoader.js";
+import { handlePageAnchorClick } from "./pageAnchorNavigation.js";
 
 let asteroidSceneModulePromise;
 const loadAsteroidSceneModule = () => {
@@ -33,15 +36,59 @@ const loadAsteroidSceneModule = () => {
   return asteroidSceneModulePromise;
 };
 const LazyAsteroidScene = lazy(loadAsteroidSceneModule);
+const READER_RESOURCE_TIMEOUT_MS = 7000;
+let markdownContentModulePromise;
+const loadMarkdownContentModule = () => {
+  markdownContentModulePromise ??= new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(
+      () => reject(new Error("Markdown renderer load timed out")),
+      READER_RESOURCE_TIMEOUT_MS,
+    );
+    import("./MarkdownContent.jsx").then(
+      (module) => {
+        window.clearTimeout(timeout);
+        resolve(module);
+      },
+      (error) => {
+        window.clearTimeout(timeout);
+        reject(error);
+      },
+    );
+  }).catch((error) => {
+    markdownContentModulePromise = undefined;
+    throw error;
+  });
+  return markdownContentModulePromise;
+};
+const LazyMarkdownContent = lazy(loadMarkdownContentModule);
+let blogPageModulePromise;
+const loadBlogPageModule = () => {
+  blogPageModulePromise ??= import("./BlogPage.jsx").catch((error) => {
+    blogPageModulePromise = undefined;
+    throw error;
+  });
+  return blogPageModulePromise;
+};
+const LazyBlogPage = lazy(loadBlogPageModule);
+let blogPostPageModulePromise;
+const loadBlogPostPageModule = () => {
+  blogPostPageModulePromise ??= import("./BlogPostPage.jsx").catch((error) => {
+    blogPostPageModulePromise = undefined;
+    throw error;
+  });
+  return blogPostPageModulePromise;
+};
+const LazyBlogPostPage = lazy(loadBlogPostPageModule);
 const INTRO_SESSION_KEY = "maple-vibe-opening-v1";
 const HARD_RELOAD_INTENT_KEY = "maple-vibe-hard-reload-intent";
 const HARD_RELOAD_INTENT_TTL_MS = 15000;
+const BLOG_PATH = "/blog";
 
 const sectionRailItems = [
-  { id: "top", number: "01", label: "首页", navLabel: "关于我" },
-  { id: "projects", number: "02", label: "作品", navLabel: "作品" },
-  { id: "stack", number: "03", label: "技术栈", navLabel: "技术栈" },
-  { id: "contact", number: "04", label: "文章与联系", navLabel: "文章 / 联系" },
+  { id: "top", number: "01" },
+  { id: "projects", number: "02" },
+  { id: "stack", number: "03" },
+  { id: "contact", number: "04" },
 ];
 const portfolioJourneyMetrics = getPortfolioJourneyMetrics(projects.length);
 
@@ -66,6 +113,25 @@ function contentRoutePath(type, id) {
   return `/${collection}/${encodeURIComponent(id)}`;
 }
 
+function parseBlogRoute(pathname = window.location.pathname) {
+  const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+  if (normalized === BLOG_PATH) return { view: "index", slug: null };
+
+  const match = normalized.match(/^\/blog\/([^/]+)$/);
+  if (!match) return null;
+  try {
+    return { view: "post", slug: decodeURIComponent(match[1]) };
+  } catch {
+    return null;
+  }
+}
+
+function isBlogRoute(pathname = window.location.pathname) {
+  const route = parseBlogRoute(pathname);
+  return route?.view === "index"
+    || (route?.view === "post" && Boolean(getBlogPostBySlug(route.slug)));
+}
+
 function canUseProjectViewTransition(sourceElement) {
   if (!sourceElement?.isConnected || typeof document.startViewTransition !== "function") return false;
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
@@ -78,108 +144,16 @@ function canUseProjectViewTransition(sourceElement) {
     && rect.left < window.innerWidth;
 }
 
-let pageAnchorAnimationFrame = 0;
-let cancelPageAnchorAnimation = () => {};
-
-function animatePageAnchor(target) {
-  cancelPageAnchorAnimation();
-
-  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if (reducedMotion) {
-    target.scrollIntoView({ behavior: "auto", block: "start" });
-    return;
-  }
-
-  const startY = window.scrollY;
-  const maxY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-  const targetY = Math.min(maxY, Math.max(0, startY + target.getBoundingClientRect().top));
-  const distance = targetY - startY;
-  if (Math.abs(distance) < 1) return;
-
-  const duration = Math.min(1800, Math.max(1050, 1000 + Math.abs(distance) * 0.08));
-  const startedAt = performance.now();
-  const cancelEvents = ["wheel", "touchstart", "pointerdown"];
-  const cancelKeys = new Set([
-    "ArrowDown",
-    "ArrowUp",
-    "End",
-    "Home",
-    "PageDown",
-    "PageUp",
-    " ",
-  ]);
-  let active = true;
-
-  const cleanup = () => {
-    if (!active) return;
-    active = false;
-    window.cancelAnimationFrame(pageAnchorAnimationFrame);
-    pageAnchorAnimationFrame = 0;
-    cancelEvents.forEach((type) => window.removeEventListener(type, cleanup));
-    window.removeEventListener("keydown", handleKeydown);
-    cancelPageAnchorAnimation = () => {};
-  };
-  const handleKeydown = (event) => {
-    if (cancelKeys.has(event.key)) cleanup();
-  };
-  const easeInOutCubic = (progress) => (
-    progress < 0.5
-      ? 4 * progress * progress * progress
-      : 1 - ((-2 * progress + 2) ** 3) / 2
-  );
-  const tick = (now) => {
-    if (!active) return;
-    const progress = Math.min(1, (now - startedAt) / duration);
-    window.scrollTo(0, startY + distance * easeInOutCubic(progress));
-    if (progress >= 1) {
-      cleanup();
-      return;
-    }
-    pageAnchorAnimationFrame = window.requestAnimationFrame(tick);
-  };
-
-  cancelPageAnchorAnimation = cleanup;
-  cancelEvents.forEach((type) => window.addEventListener(type, cleanup, { passive: true }));
-  window.addEventListener("keydown", handleKeydown);
-  pageAnchorAnimationFrame = window.requestAnimationFrame(tick);
-}
-
-function handlePageAnchorClick(event) {
-  if (
-    event.defaultPrevented
-    || event.button !== 0
-    || event.metaKey
-    || event.ctrlKey
-    || event.shiftKey
-    || event.altKey
-  ) return;
-
-  const anchor = event.currentTarget;
-  const hash = anchor.hash || anchor.getAttribute("href");
-  if (!hash?.startsWith("#")) return;
-
-  let targetId;
-  try {
-    targetId = decodeURIComponent(hash.slice(1));
-  } catch {
-    return;
-  }
-  const target = document.getElementById(targetId);
-  if (!target) return;
-
-  event.preventDefault();
-  if (window.location.hash !== hash) {
-    const nextUrl = `${window.location.pathname}${window.location.search}${hash}`;
-    window.history.pushState({ ...(window.history.state || {}) }, "", nextUrl);
-  }
-  animatePageAnchor(target);
-}
-
 function useScrollProgress() {
   useEffect(() => {
+    let frame = 0;
     const update = () => {
-      const max = document.documentElement.scrollHeight - window.innerHeight;
-      document.documentElement.style.setProperty("--scroll-progress", `${max > 0 ? Math.min(1, window.scrollY / max) : 0}`);
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        const max = document.documentElement.scrollHeight - window.innerHeight;
+        document.documentElement.style.setProperty("--scroll-progress", `${max > 0 ? Math.min(1, window.scrollY / max) : 0}`);
+      });
     };
     update();
     window.addEventListener("scroll", update, { passive: true });
@@ -187,6 +161,7 @@ function useScrollProgress() {
     const resizeObserver = new ResizeObserver(update);
     resizeObserver.observe(document.body);
     return () => {
+      window.cancelAnimationFrame(frame);
       resizeObserver.disconnect();
       window.removeEventListener("scroll", update);
       window.removeEventListener("resize", update);
@@ -216,11 +191,11 @@ class AsteroidSceneBoundary extends Component {
   }
 }
 
-function DeferredAsteroidScene({ forceFallback, onProgress, onReady }) {
+function DeferredAsteroidScene({ forceFallback, onProgress, onReady, suspended = false }) {
   if (forceFallback) return <AsteroidSceneFallback compatibility />;
   return <AsteroidSceneBoundary onProgress={onProgress} onReady={onReady}>
     <Suspense fallback={<AsteroidSceneFallback />}>
-      <LazyAsteroidScene onProgress={onProgress} onReady={onReady} />
+      <LazyAsteroidScene onProgress={onProgress} onReady={onReady} suspended={suspended} />
     </Suspense>
   </AsteroidSceneBoundary>;
 }
@@ -256,14 +231,16 @@ function useActiveSection() {
 }
 
 function SectionRail({ activeSection }) {
-  return <nav className="hero-rail" aria-label="页面进度">
-    {sectionRailItems.map((item) => <a key={item.id} href={`#${item.id}`} onClick={handlePageAnchorClick} aria-label={`${item.number} ${item.label}`} aria-current={activeSection === item.id ? "location" : undefined} className={activeSection === item.id ? "is-active" : ""}>{item.number}</a>)}
+  const { copy } = useLocale();
+  return <nav className="hero-rail" aria-label={copy.nav.progress}>
+    {sectionRailItems.map((item) => <a key={item.id} href={`#${item.id}`} onClick={handlePageAnchorClick} aria-label={`${item.number} ${copy.rail[item.id].label}`} aria-current={activeSection === item.id ? "location" : undefined} className={activeSection === item.id ? "is-active" : ""}>{item.number}</a>)}
     <ArrowDown size={17} aria-hidden="true" />
   </nav>;
 }
 
 function Header({ activeSection, onReplay }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { copy, locale, setLocale } = useLocale();
   const menuButtonRef = useRef(null);
   const close = () => setMenuOpen(false);
   const navigate = (event) => {
@@ -283,11 +260,12 @@ function Header({ activeSection, onReplay }) {
   }, [menuOpen]);
 
   return <header className="site-header">
-    <a className="wordmark" href="#top" onClick={handlePageAnchorClick} aria-label="Maple 首页">MAPLE <span aria-hidden="true" /></a>
-    <button ref={menuButtonRef} className="menu-toggle" type="button" onClick={() => setMenuOpen((value) => !value)} aria-expanded={menuOpen} aria-controls="site-navigation" aria-label={menuOpen ? "关闭菜单" : "打开菜单"}>{menuOpen ? <X size={22} /> : <List size={22} />}</button>
-    <nav id="site-navigation" className={`site-nav${menuOpen ? " is-open" : ""}`} aria-label="主导航">
-      {sectionRailItems.map((item) => <a key={item.id} href={`#${item.id}`} onClick={navigate} aria-current={activeSection === item.id ? "location" : undefined} className={activeSection === item.id ? "is-active" : ""}><span className="site-nav__index" aria-hidden="true">{item.number}</span><span className="site-nav__label">{item.navLabel}</span></a>)}
-      {onReplay && <button className="site-nav__replay" type="button" onClick={() => { close(); onReplay(); }}>重播构建</button>}
+    <a className="wordmark" href="#top" onClick={handlePageAnchorClick} aria-label={copy.nav.home}>MAPLE <span aria-hidden="true" /></a>
+    <button ref={menuButtonRef} className="menu-toggle" type="button" onClick={() => setMenuOpen((value) => !value)} aria-expanded={menuOpen} aria-controls="site-navigation" aria-label={menuOpen ? copy.nav.close : copy.nav.open}>{menuOpen ? <X size={22} /> : <List size={22} />}</button>
+    <nav id="site-navigation" className={`site-nav${menuOpen ? " is-open" : ""}`} aria-label={copy.nav.mainNav}>
+      {sectionRailItems.map((item) => <a key={item.id} href={`#${item.id}`} onClick={navigate} aria-current={activeSection === item.id ? "location" : undefined} className={activeSection === item.id ? "is-active" : ""}><span className="site-nav__index" aria-hidden="true">{item.number}</span><span className="site-nav__label">{copy.rail[item.id].navLabel}</span></a>)}
+      {onReplay && <button className="site-nav__replay" type="button" onClick={() => { close(); onReplay(); }}>{copy.nav.replay}</button>}
+      <button className="site-nav__lang" type="button" lang={locale === "zh" ? "en" : "zh"} aria-label={copy.nav.langActionAria} onClick={() => { close(); setLocale(locale === "zh" ? "en" : "zh"); }}>{copy.nav.langAction}</button>
     </nav>
     <span className="scroll-meter" aria-hidden="true" />
   </header>;
@@ -298,11 +276,13 @@ function PageChrome({ onReplay }) {
   return <><Header activeSection={activeSection} onReplay={onReplay} /><SectionRail activeSection={activeSection} /></>;
 }
 
-function HeroSection({ forceSceneFallback, onSceneProgress, onSceneReady }) {
+function HeroSection({ forceSceneFallback, onSceneProgress, onSceneReady, sceneEnabled = true, sceneSuspended = false }) {
+  const { locale, copy } = useLocale();
+  const heroText = locale === "en" ? profileEn : profile;
   return <section className="hero snap-panel" aria-labelledby="hero-title">
     <StarField />
-    <div className="hero__copy"><p className="eyebrow">{profile.name.toUpperCase()} / 作品集与随笔 2026</p><h1 id="hero-title"><span className="hero__name">{profile.name.toUpperCase()} <em>/</em></span><span className="hero__role-lockup"><span className="hero__role-en">CREATIVE DEVELOPER</span><span className="hero__role-cn">创意开发者<br />AI 应用与 Agent 系统</span></span></h1><p className="hero__statement">{profile.heroStatement[0]}<br />{profile.heroStatement[1]}</p><p className="availability"><span aria-hidden="true" />{profile.availability}</p><a className="primary-button" href="#projects" onClick={handlePageAnchorClick}>查看作品 <ArrowDown size={21} weight="bold" aria-hidden="true" /></a><p className="location">{profile.location}<br />© {profile.name.toUpperCase()} 2026</p></div>
-    <div className="hero__visual"><DeferredAsteroidScene forceFallback={forceSceneFallback} onProgress={onSceneProgress} onReady={onSceneReady} /></div>
+    <div className="hero__copy"><p className="eyebrow">{profile.name.toUpperCase()} / {copy.hero.eyebrowSuffix}</p><h1 id="hero-title"><span className="hero__name">{profile.name.toUpperCase()} <em>/</em></span><span className="hero__role-lockup"><span className="hero__role-en">CREATIVE DEVELOPER</span><span className="hero__role-cn">{copy.hero.roleLines[0]}{copy.hero.roleLines.length > 1 && <><br />{copy.hero.roleLines[1]}</>}</span></span></h1><p className="hero__statement">{heroText.heroStatement[0]}<br />{heroText.heroStatement[1]}</p><p className="availability"><span aria-hidden="true" />{profile.availability}</p><a className="primary-button" href="#projects" onClick={handlePageAnchorClick}>{copy.hero.viewWorks} <ArrowDown size={21} weight="bold" aria-hidden="true" /></a><p className="location">{profile.location}<br />© {profile.name.toUpperCase()} 2026</p></div>
+    <div className="hero__visual">{sceneEnabled && <DeferredAsteroidScene forceFallback={forceSceneFallback} onProgress={onSceneProgress} onReady={onSceneReady} suspended={sceneSuspended} />}</div>
   </section>;
 }
 
@@ -339,7 +319,7 @@ function hasFreshHardReloadIntent() {
 
 function ProjectSection({ project, onOpenProject }) {
   return <article className={`project project--${project.align} project--${project.id}`} aria-labelledby={`project-${project.id}`}>
-    <div className="project__image-wrap"><img src={project.cover} alt={`${project.title}项目视觉`} className="project__image" loading="lazy" fetchPriority="low" /></div>
+    <div className="project__image-wrap"><img src={project.cover} alt={`${project.title}项目视觉`} className="project__image" loading="lazy" decoding="async" fetchPriority="low" /></div>
     <div className="project__copy">
       <span className="project__number">{project.index}</span>
       <p className="project__kicker">{project.category}</p>
@@ -389,7 +369,7 @@ function FeaturedEssayInterlude({ article, onOpenArticle }) {
         {titleTail && <span className="featured-note__title-line">{titleTail}</span>}
       </h3>
       <p>{article.excerpt}</p>
-      <button type="button" className="read-button" aria-haspopup="dialog" onClick={() => onOpenArticle(article.id)}>进入阅读模式 <ArrowUpRight size={18} aria-hidden="true" /></button>
+      <button type="button" className="read-button" aria-haspopup="dialog" onClick={(event) => onOpenArticle(article.id, event.currentTarget)}>进入阅读模式 <ArrowUpRight size={18} aria-hidden="true" /></button>
     </div>
   </aside>;
 }
@@ -399,7 +379,7 @@ function ProjectArchive({ items, onOpenProject }) {
     <div className="project-archive__heading"><p>更多项目 / MORE WORK</p><span>能力的宽度，不需要重复同一种音量。</span></div>
     <div className={`project-archive__grid${items.length === 1 ? " project-archive__grid--single" : ""}`}>
       {items.map((project) => <article className={`project-card project-card--${project.id}`} key={project.id} aria-labelledby={`project-${project.id}`}>
-        <div className="project-card__image"><img src={project.cover} alt={`${project.title}项目视觉`} loading="lazy" /></div>
+        <div className="project-card__image"><img src={project.cover} alt={`${project.title}项目视觉`} loading="lazy" decoding="async" fetchPriority="low" /></div>
         <div className="project-card__copy"><span>{project.index} / {project.year}</span><p>{project.category}</p><h3 id={`project-${project.id}`}>{project.title}</h3><p>{project.excerpt}</p><ProjectActions project={project} onOpenProject={onOpenProject} compact /></div>
       </article>)}
     </div>
@@ -439,11 +419,11 @@ function NotesSection({ onOpenArticle }) {
         <p className="notes__meta">{featuredArticle.category} · {formatArticleDate(featuredArticle.date)} · {featuredArticle.readTime}</p>
         <h3 id="notes-title">{featuredArticle.title}</h3>
         <p>{featuredArticle.excerpt}</p>
-        <button type="button" className="read-button" aria-haspopup="dialog" onClick={() => onOpenArticle(featuredArticle.id)}>阅读全文 <ArrowUpRight size={18} aria-hidden="true" /></button>
+        <button type="button" className="read-button" aria-haspopup="dialog" onClick={(event) => onOpenArticle(featuredArticle.id, event.currentTarget)}>阅读全文 <ArrowUpRight size={18} aria-hidden="true" /></button>
       </article>
       <div className="notes__index" aria-label="文章索引">
         <p className="notes__index-title">其余文章 / INDEX</p>
-        {otherArticles.map((article) => <button className="article-index" type="button" aria-haspopup="dialog" onClick={() => onOpenArticle(article.id)} key={article.id}>
+        {otherArticles.map((article) => <button className="article-index" type="button" aria-haspopup="dialog" onClick={(event) => onOpenArticle(article.id, event.currentTarget)} key={article.id}>
           <span className="article-index__number">{article.index}</span>
           <span className="article-index__copy"><span>{article.category} · {article.readTime}</span><strong>{article.title}</strong><small>{article.excerpt}</small></span>
           <ArrowUpRight size={18} aria-hidden="true" />
@@ -458,7 +438,7 @@ function NotesSection({ onOpenArticle }) {
   </section>;
 }
 
-function useReaderDialog(isOpen, onClose, closeRef) {
+function useReaderDialog(isOpen, onClose, closeRef, rootRef, restoreFocusRef) {
   const onCloseRef = useRef(onClose);
 
   useEffect(() => {
@@ -467,15 +447,18 @@ function useReaderDialog(isOpen, onClose, closeRef) {
 
   useEffect(() => {
     if (!isOpen) return undefined;
-    const previousFocus = document.activeElement;
+    const previousFocus = restoreFocusRef?.current ?? document.activeElement;
     const focusFrame = window.requestAnimationFrame(() => closeRef.current?.focus());
     const onKeyDown = (event) => {
       if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
         onCloseRef.current?.();
         return;
       }
       if (event.key !== "Tab") return;
-      const focusable = [...document.querySelectorAll(".content-reader button, .content-reader a")].filter((element) => !element.hasAttribute("disabled"));
+      const focusable = [...(rootRef.current?.querySelectorAll("button, a[href]") ?? [])]
+        .filter((element) => !element.hasAttribute("disabled"));
       if (!focusable.length) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
@@ -491,22 +474,22 @@ function useReaderDialog(isOpen, onClose, closeRef) {
     return () => {
       window.cancelAnimationFrame(focusFrame);
       window.removeEventListener("keydown", onKeyDown);
-      previousFocus?.focus?.({ preventScroll: true });
+      window.requestAnimationFrame(() => {
+        if (previousFocus?.isConnected && !previousFocus.closest?.("[inert]")) {
+          previousFocus.focus({ preventScroll: true });
+        }
+      });
     };
-  }, [isOpen, closeRef]);
+  }, [isOpen, closeRef, restoreFocusRef, rootRef]);
 }
 
-function ContentsIndex({ headings }) {
-  return <aside><span>CONTENTS</span><ol>{headings.map((heading) => <li key={heading.id}><a href={`#${heading.id}`}>{heading.title}</a></li>)}</ol></aside>;
-}
-
-function ProjectContentsIndex({ project, headings, readerRef }) {
-  const [contentsOpen, setContentsOpen] = useState(false);
+function ContentsIndex({ headings, readerRef }) {
   const [activeHeadingId, setActiveHeadingId] = useState(headings[0]?.id ?? null);
 
   useEffect(() => {
     const reader = readerRef.current;
     if (!reader || !headings.length) return undefined;
+    let frame = 0;
     const updateActiveHeading = () => {
       const threshold = reader.getBoundingClientRect().top + 150;
       let nextHeadingId = headings[0].id;
@@ -516,14 +499,59 @@ function ProjectContentsIndex({ project, headings, readerRef }) {
       });
       setActiveHeadingId((current) => current === nextHeadingId ? current : nextHeadingId);
     };
-    updateActiveHeading();
-    reader.addEventListener("scroll", updateActiveHeading, { passive: true });
-    return () => reader.removeEventListener("scroll", updateActiveHeading);
+    const scheduleUpdate = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        updateActiveHeading();
+      });
+    };
+    scheduleUpdate();
+    reader.addEventListener("scroll", scheduleUpdate, { passive: true });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      reader.removeEventListener("scroll", scheduleUpdate);
+    };
+  }, [headings, readerRef]);
+
+  return <aside><span>CONTENTS</span><ol>{headings.map((heading) => <li key={heading.id} data-active={activeHeadingId === heading.id ? "true" : undefined}><a href={`#${heading.id}`} aria-current={activeHeadingId === heading.id ? "location" : undefined}>{heading.title}</a></li>)}</ol></aside>;
+}
+
+function ProjectContentsIndex({ project, headings, readerRef }) {
+  const [contentsOpen, setContentsOpen] = useState(false);
+  const [activeHeadingId, setActiveHeadingId] = useState(headings[0]?.id ?? null);
+  const { copy } = useLocale();
+
+  useEffect(() => {
+    const reader = readerRef.current;
+    if (!reader || !headings.length) return undefined;
+    let frame = 0;
+    const updateActiveHeading = () => {
+      const threshold = reader.getBoundingClientRect().top + 150;
+      let nextHeadingId = headings[0].id;
+      headings.forEach((heading) => {
+        const target = reader.querySelector(`[id="${CSS.escape(heading.id)}"]`);
+        if (target?.getBoundingClientRect().top <= threshold) nextHeadingId = heading.id;
+      });
+      setActiveHeadingId((current) => current === nextHeadingId ? current : nextHeadingId);
+    };
+    const scheduleUpdate = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        updateActiveHeading();
+      });
+    };
+    scheduleUpdate();
+    reader.addEventListener("scroll", scheduleUpdate, { passive: true });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      reader.removeEventListener("scroll", scheduleUpdate);
+    };
   }, [headings, readerRef]);
 
   const navigateToHeading = (headingId) => {
-    const target = [...(readerRef.current?.querySelectorAll("[id]") ?? [])]
-      .find((element) => element.id === headingId);
+    const target = readerRef.current?.querySelector(`#${CSS.escape(headingId)}`);
     if (!target) return;
     setActiveHeadingId(headingId);
     if (window.matchMedia("(max-width: 760px)").matches) setContentsOpen(false);
@@ -545,9 +573,9 @@ function ProjectContentsIndex({ project, headings, readerRef }) {
       aria-expanded={contentsOpen}
       onClick={() => setContentsOpen((current) => !current)}
     >
-      <span>章节导航</span><i aria-hidden="true">{contentsOpen ? "收起" : "展开"}</i>
+      <span>{copy.reader.chapters}</span><i aria-hidden="true">{contentsOpen ? copy.reader.collapse : copy.reader.expand}</i>
     </button>
-    <nav aria-label={`${project.title} 项目章节`} data-open={contentsOpen ? "true" : "false"}>
+    <nav aria-label={copy.reader.projectChaptersAria(project.title)} data-open={contentsOpen ? "true" : "false"}>
       <span>CONTENTS</span>
       <ol>{headings.map((heading, index) => <li key={heading.id}>
         <button
@@ -563,102 +591,130 @@ function ProjectContentsIndex({ project, headings, readerRef }) {
   </aside>;
 }
 
-function remarkHeadingIndexes() {
-  return (tree) => {
-    let headingIndex = 0;
-
-    visit(tree, "heading", (node) => {
-      if (node.depth !== 2) return;
-      node.data = node.data ?? {};
-      node.data.hProperties = {
-        ...node.data.hProperties,
-        "data-heading-index": headingIndex,
-      };
-      headingIndex += 1;
-    });
-  };
+function reloadReaderContent() {
+  window.location.reload();
 }
 
-function MarkdownContent({ content, headings, endLabel }) {
-  const [lightboxImage, setLightboxImage] = useState(null);
-  const lightboxCloseRef = useRef(null);
+function ReaderContentLoadError({ onRetry = reloadReaderContent, onReady }) {
+  useLayoutEffect(() => {
+    onReady?.();
+  }, [onReady]);
 
-  useEffect(() => {
-    if (!lightboxImage) return undefined;
-    const reader = document.querySelector(".article-reader");
-    const previousReaderOverflow = reader?.style.overflow;
-    const previousReaderScrollTop = reader?.scrollTop ?? 0;
-    const previousFocus = document.activeElement;
-    if (reader) reader.style.overflow = "hidden";
-    const focusFrame = window.requestAnimationFrame(() => lightboxCloseRef.current?.focus());
-    const onKeyDown = (event) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        setLightboxImage(null);
-      } else if (event.key === "Tab") {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        lightboxCloseRef.current?.focus();
-      }
-    };
-    window.addEventListener("keydown", onKeyDown, true);
-    return () => {
-      window.cancelAnimationFrame(focusFrame);
-      window.removeEventListener("keydown", onKeyDown, true);
-      if (reader) reader.style.overflow = previousReaderOverflow ?? "";
-      window.requestAnimationFrame(() => {
-        if (reader) reader.scrollTo({ top: previousReaderScrollTop, behavior: "auto" });
-        previousFocus?.focus?.({ preventScroll: true });
-      });
-    };
-  }, [lightboxImage]);
-
-  const markdownComponents = {
-    h2({ children, node }) {
-      const rawIndex = node?.properties?.dataHeadingIndex ?? node?.properties?.["data-heading-index"];
-      const headingIndex = Number(rawIndex);
-      const safeIndex = Number.isInteger(headingIndex) && headingIndex >= 0 ? headingIndex : 0;
-      const heading = headings[safeIndex];
-      const number = String(safeIndex + 1).padStart(2, "0");
-      return <h2 id={heading?.id}><span aria-hidden="true">{number}</span>{children}</h2>;
-    },
-    a({ href = "", children, ...props }) {
-      const isExternal = /^https?:\/\//.test(href);
-      return <a href={href} target={isExternal ? "_blank" : undefined} rel={isExternal ? "noreferrer" : undefined} {...props}>{children}</a>;
-    },
-    img({ src = "", alt = "" }) {
-      return <button className="article-image-button" type="button" onClick={() => setLightboxImage({ src, alt })} aria-label={`放大图片：${alt || "文章插图"}`}>
-        <img src={src} alt={alt} loading="lazy" />
-      </button>;
-    },
-  };
-
-  return <div className="article-reader__prose">
-    <ReactMarkdown remarkPlugins={[remarkGfm, remarkHeadingIndexes]} components={markdownComponents}>{content}</ReactMarkdown>
-    <footer>{endLabel}</footer>
-    {lightboxImage && <div className="image-lightbox" role="dialog" aria-modal="true" aria-label={lightboxImage.alt ? `图片预览：${lightboxImage.alt}` : "图片预览"} onMouseDown={(event) => {
-      if (event.target === event.currentTarget) setLightboxImage(null);
-    }}>
-      <div className="image-lightbox__panel">
-        <button ref={lightboxCloseRef} className="image-lightbox__close" type="button" onClick={() => setLightboxImage(null)} aria-label="关闭图片预览"><X size={23} aria-hidden="true" /></button>
-        <img src={lightboxImage.src} alt={lightboxImage.alt} />
-        {lightboxImage.alt && <p>{lightboxImage.alt}</p>}
-      </div>
-    </div>}
+  const { copy } = useLocale();
+  return <div className="article-reader__prose" role="alert">
+    <p><strong>{copy.reader.loadErrorTitle}</strong></p>
+    <p>{copy.reader.loadErrorBody}</p>
+    <button className="text-link" type="button" onClick={onRetry}>{copy.reader.loadErrorRetry}</button>
   </div>;
 }
 
-function ArticleReader({ article, onClose }) {
+class MarkdownContentBoundary extends Component {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch() {
+    this.props.onReady?.();
+  }
+
+  render() {
+    if (this.state.failed) return <ReaderContentLoadError onReady={this.props.onReady} />;
+    return this.props.children;
+  }
+}
+
+function ReaderRenderReady({ onReady, children }) {
+  useLayoutEffect(() => {
+    onReady?.();
+  }, [onReady]);
+  return children;
+}
+
+function ReaderMarkdownBody({ item, endLabel, onReady }) {
+  const [body, setBody] = useState(null);
+  const [bodyFailed, setBodyFailed] = useState(false);
+
+  useEffect(() => {
+    let current = true;
+    let settled = false;
+    setBody(null);
+    setBodyFailed(false);
+    const timeout = window.setTimeout(() => {
+      if (!current || settled) return;
+      settled = true;
+      setBodyFailed(true);
+    }, READER_RESOURCE_TIMEOUT_MS);
+    item.loadBody().then((content) => {
+      if (!current || settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      setBody(content);
+    }).catch(() => {
+      if (!current || settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      setBodyFailed(true);
+    });
+    return () => {
+      current = false;
+      window.clearTimeout(timeout);
+    };
+  }, [item]);
+
+  if (bodyFailed) return <ReaderContentLoadError onReady={onReady} />;
+  if (body === null) return null;
+  return <MarkdownContentBoundary onReady={onReady}>
+    <Suspense fallback={null}>
+      <ReaderRenderReady onReady={onReady}>
+        <LazyMarkdownContent content={body} headings={item.headings} endLabel={endLabel} />
+      </ReaderRenderReady>
+    </Suspense>
+  </MarkdownContentBoundary>;
+}
+
+function ArticleReader({ article, interactive = true, onClose, onContentReady, restoreFocusRef }) {
   const closeRef = useRef(null);
-  useReaderDialog(Boolean(article), onClose, closeRef);
+  const readerRef = useRef(null);
+  const { copy, locale } = useLocale();
+  useReaderDialog(Boolean(article) && interactive, onClose, closeRef, readerRef, restoreFocusRef);
+
+  useEffect(() => {
+    const reader = readerRef.current;
+    if (!reader || !article) return undefined;
+    const documentRoot = reader.querySelector(".article-reader__document");
+    let frame = 0;
+    const updateProgress = () => {
+      const scrollRange = Math.max(0, reader.scrollHeight - reader.clientHeight);
+      const progress = scrollRange > 0 ? Math.min(1, Math.max(0, reader.scrollTop / scrollRange)) : 0;
+      reader.style.setProperty("--article-read-progress", String(progress));
+    };
+    const scheduleUpdate = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        updateProgress();
+      });
+    };
+    const resizeObserver = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(scheduleUpdate);
+    if (documentRoot) resizeObserver?.observe(documentRoot);
+    scheduleUpdate();
+    reader.addEventListener("scroll", scheduleUpdate, { passive: true });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      resizeObserver?.disconnect();
+      reader.removeEventListener("scroll", scheduleUpdate);
+      reader.style.removeProperty("--article-read-progress");
+    };
+  }, [article]);
 
   if (!article) return null;
 
-  return <div className="article-reader content-reader" role="dialog" aria-modal="true" aria-labelledby="article-reader-title">
+  return <div ref={readerRef} className="article-reader content-reader" role={interactive ? "dialog" : undefined} aria-modal={interactive ? "true" : undefined} aria-labelledby="article-reader-title" aria-hidden={interactive ? undefined : "true"} inert={interactive ? undefined : true}>
     <div className="article-reader__bar">
-      <p>MAPLE / FIELD NOTES / {article.index}</p>
-      <button ref={closeRef} type="button" onClick={onClose} aria-label="关闭文章"><span>返回主页</span><X size={21} aria-hidden="true" /></button>
+      <p>MAPLE / FIELD NOTES / <span>{article.index}</span></p>
+      <button ref={closeRef} type="button" onClick={onClose} aria-label={copy.reader.closeArticle}><span>{copy.reader.backHome}</span><X size={21} aria-hidden="true" /></button>
     </div>
     <article className="article-reader__document">
       <header className="article-reader__head">
@@ -666,24 +722,144 @@ function ArticleReader({ article, onClose }) {
         <div><span>ARTICLE / {article.index}</span><h2 id="article-reader-title">{article.title}</h2><p>{article.excerpt}</p></div>
       </header>
       <div className="article-reader__body">
-        <ContentsIndex headings={article.headings} />
-        <MarkdownContent content={article.body} headings={article.headings} endLabel={`END OF ARTICLE / ${article.index}`} />
+        <ContentsIndex headings={article.headings} readerRef={readerRef} />
+        <ReaderMarkdownBody key={`${locale}:${article.id}`} item={article} endLabel={`END OF ARTICLE / ${article.index}`} onReady={onContentReady} />
       </div>
     </article>
   </div>;
 }
 
-function ProjectReader({ project, onClose }) {
+function ProjectReader({ project, interactive = true, onClose, onContentReady }) {
   const closeRef = useRef(null);
   const readerRef = useRef(null);
-  useReaderDialog(Boolean(project), onClose, closeRef);
+  const { copy, locale } = useLocale();
+  useReaderDialog(Boolean(project) && interactive, onClose, closeRef, readerRef);
+
+  useLayoutEffect(() => {
+    const reader = readerRef.current;
+    if (!reader || !project) return undefined;
+    const hero = reader.querySelector(".project-reader__hero");
+    const body = reader.querySelector(".project-reader__body");
+    const bar = reader.querySelector(".project-reader__bar");
+    if (!hero || !body || !bar) return undefined;
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const motionProperties = [
+      "--project-cover-left-x",
+      "--project-cover-right-x",
+      "--project-cover-copy-opacity",
+      "--project-cover-blur",
+      "--project-cover-media-scale",
+      "--project-cover-brightness",
+      "--project-body-entry-y",
+      "--project-body-entry-opacity",
+    ];
+    let frame = 0;
+    let transitionStart = 0;
+    let transitionEnd = 1;
+    let readerWidth = reader.clientWidth;
+    let readerHeight = reader.clientHeight;
+
+    const clearMotionProperties = () => {
+      motionProperties.forEach((property) => reader.style.removeProperty(property));
+    };
+
+    const measureTransition = () => {
+      const readerRect = reader.getBoundingClientRect();
+      const bodyRect = body.getBoundingClientRect();
+      readerWidth = reader.clientWidth;
+      readerHeight = reader.clientHeight;
+      const bodyTop = bodyRect.top - readerRect.top + reader.scrollTop;
+      transitionStart = Math.max(0, bodyTop - readerHeight);
+      transitionEnd = Math.max(
+        transitionStart + 1,
+        bodyTop - bar.offsetHeight,
+      );
+    };
+
+    const renderTransition = () => {
+      if (reducedMotion.matches) {
+        if (reader.dataset.coverTransition !== "static") clearMotionProperties();
+        reader.dataset.coverTransition = "static";
+        return;
+      }
+
+      const progress = Math.min(1, Math.max(0, (reader.scrollTop - transitionStart) / Math.max(1, transitionEnd - transitionStart)));
+      const compactMotion = readerWidth <= 899 || readerHeight <= 660;
+      const initialBodyTravel = compactMotion ? 38 : 82;
+      if (progress <= 0.04) {
+        if (reader.dataset.coverTransition !== "top") clearMotionProperties();
+        reader.style.setProperty("--project-body-entry-y", `${initialBodyTravel}px`);
+        reader.style.setProperty("--project-body-entry-opacity", "0.28");
+        reader.dataset.coverTransition = "top";
+        return;
+      }
+      if (progress >= 0.999) {
+        if (reader.dataset.coverTransition !== "content") clearMotionProperties();
+        reader.dataset.coverTransition = "content";
+        return;
+      }
+
+      const smoothstep = (from, to, value) => {
+        const normalized = Math.min(1, Math.max(0, (value - from) / Math.max(0.0001, to - from)));
+        return normalized * normalized * (3 - 2 * normalized);
+      };
+      const split = smoothstep(0.04, 0.86, progress);
+      const fade = smoothstep(0.3, 0.94, progress);
+      const blur = smoothstep(0.12, 1, progress);
+      const bodyReveal = smoothstep(0.18, 0.86, progress);
+      const leftTravel = compactMotion ? Math.min(42, readerWidth * 0.055) : Math.min(154, readerWidth * 0.09);
+      const rightTravel = compactMotion ? Math.min(50, readerWidth * 0.065) : Math.min(184, readerWidth * 0.105);
+      const blurRadius = (compactMotion ? 3 : 6) * blur;
+      const bodyTravel = initialBodyTravel * (1 - bodyReveal);
+
+      reader.style.setProperty("--project-cover-left-x", `${-leftTravel * split}px`);
+      reader.style.setProperty("--project-cover-right-x", `${rightTravel * split}px`);
+      reader.style.setProperty("--project-cover-copy-opacity", String(1 - fade));
+      reader.style.setProperty("--project-cover-blur", `${blurRadius}px`);
+      reader.style.setProperty("--project-cover-media-scale", String(1 + 0.028 * blur));
+      reader.style.setProperty("--project-cover-brightness", String(0.82 - 0.1 * blur));
+      reader.style.setProperty("--project-body-entry-y", `${bodyTravel}px`);
+      reader.style.setProperty("--project-body-entry-opacity", String(0.28 + 0.72 * bodyReveal));
+      reader.dataset.coverTransition = "active";
+    };
+
+    const scheduleTransition = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        renderTransition();
+      });
+    };
+
+    const resizeObserver = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => {
+      measureTransition();
+      scheduleTransition();
+    });
+    resizeObserver?.observe(reader);
+    resizeObserver?.observe(hero);
+    resizeObserver?.observe(bar);
+    reader.addEventListener("scroll", scheduleTransition, { passive: true });
+    reducedMotion.addEventListener?.("change", scheduleTransition);
+    measureTransition();
+    renderTransition();
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      resizeObserver?.disconnect();
+      reader.removeEventListener("scroll", scheduleTransition);
+      reducedMotion.removeEventListener?.("change", scheduleTransition);
+      clearMotionProperties();
+      delete reader.dataset.coverTransition;
+    };
+  }, [project]);
 
   if (!project) return null;
 
   const longform = project.headings.length >= 3;
-  const headlineDividerIndex = project.headline.indexOf("：");
-  const statement = headlineDividerIndex >= 0
-    ? project.headline.slice(headlineDividerIndex + 1).trim()
+  const headlineDividerMatch = project.headline.match(/[：:]\s*/);
+  const statement = headlineDividerMatch
+    ? project.headline.slice(headlineDividerMatch.index + headlineDividerMatch[0].length).trim()
     : project.headline !== project.title
       ? project.headline
       : project.excerpt;
@@ -691,16 +867,18 @@ function ProjectReader({ project, onClose }) {
   return <div
     ref={readerRef}
     className="article-reader project-reader content-reader"
-    role="dialog"
-    aria-modal="true"
+    role={interactive ? "dialog" : undefined}
+    aria-modal={interactive ? "true" : undefined}
     aria-labelledby="project-reader-title"
+    aria-hidden={interactive ? undefined : "true"}
+    inert={interactive ? undefined : true}
     data-content-mode={longform ? "longform" : "compact"}
     data-project-id={project.id}
     style={{ viewTransitionName: "project-card" }}
   >
     <div className="article-reader__bar project-reader__bar">
       <p><span>MAPLE / PROJECT</span><strong>{project.index} — {project.title}</strong></p>
-      <button ref={closeRef} type="button" onClick={onClose} aria-label="返回项目环"><ArrowLeft size={21} aria-hidden="true" /><span>返回项目环</span></button>
+      <button ref={closeRef} type="button" onClick={onClose} aria-label={copy.reader.backToProjects}><ArrowLeft size={21} aria-hidden="true" /><span>{copy.reader.backToProjects}</span></button>
     </div>
     <article className="article-reader__document">
       <header
@@ -711,7 +889,7 @@ function ProjectReader({ project, onClose }) {
           "--project-cover-background": project.coverBackground,
         }}
       >
-        <figure className="project-reader__hero-media"><img src={project.cover} alt={`${project.title} 项目视觉`} /></figure>
+        <figure className="project-reader__hero-media"><img src={project.cover} alt={copy.journey.projectVisualAlt(project.title)} decoding="async" fetchPriority="high" /></figure>
         <p className="project-reader__hero-meta"><span>{project.index} / {project.year}</span><span>{project.category}</span></p>
         <div className="project-reader__hero-copy">
           <p className="project-reader__hero-category">SELECTED WORK / {project.index}</p>
@@ -729,9 +907,9 @@ function ProjectReader({ project, onClose }) {
       <div className="article-reader__body project-reader__body">
         {longform && <ProjectContentsIndex project={project} headings={project.headings} readerRef={readerRef} />}
         <div className="project-reader__prose-column">
-          <MarkdownContent content={project.body} headings={project.headings} endLabel={`END OF PROJECT / ${project.index}`} />
+          <ReaderMarkdownBody key={`${locale}:${project.id}`} item={project} endLabel={`END OF PROJECT / ${project.index}`} onReady={onContentReady} />
           <div className="project-reader__endnav">
-            <button type="button" onClick={onClose}><ArrowLeft size={19} aria-hidden="true" />返回项目环</button>
+            <button type="button" onClick={onClose}><ArrowLeft size={19} aria-hidden="true" />{copy.reader.backToProjects}</button>
             <ProjectExternalLink project={project} />
           </div>
         </div>
@@ -741,57 +919,76 @@ function ProjectReader({ project, onClose }) {
 }
 
 function NotFoundPage({ path, onGoHome }) {
+  const { copy } = useLocale();
   return <main className="not-found" aria-labelledby="not-found-title">
     <div className="not-found__orbit" aria-hidden="true"><span /><span /><span /></div>
-    <header className="not-found__header"><button type="button" onClick={onGoHome} aria-label="返回 Maple 首页">MAPLE <i aria-hidden="true" /></button><span>ERROR / 404</span></header>
+    <header className="not-found__header"><button type="button" onClick={onGoHome} aria-label={copy.notFound.homeAria}>MAPLE <i aria-hidden="true" /></button><span>ERROR / 404</span></header>
     <div className="not-found__content">
       <p className="not-found__eyebrow">404 / LOST IN ORBIT</p>
-      <h1 id="not-found-title">这里没有<br />可抵达的轨道。</h1>
-      <p>这个地址不存在，或者对应的文章与项目已经移动。</p>
+      <h1 id="not-found-title">{copy.notFound.titleLine1}<br />{copy.notFound.titleLine2}</h1>
+      <p>{copy.notFound.body}</p>
       <code>{path}</code>
-      <button className="not-found__action" type="button" onClick={onGoHome}>返回首页 <ArrowRight size={19} weight="bold" aria-hidden="true" /></button>
+      <button className="not-found__action" type="button" onClick={onGoHome}>{copy.notFound.action} <ArrowRight size={19} weight="bold" aria-hidden="true" /></button>
     </div>
     <p className="not-found__status">SYSTEM STATUS / ROUTE NOT FOUND</p>
   </main>;
 }
 
-function WechatDialog({ open, onClose }) {
+function WechatDialog({ open, onClose, restoreFocusRef }) {
+  const { copy } = useLocale();
   const closeRef = useRef(null);
-  useReaderDialog(open, onClose, closeRef);
+  const dialogRef = useRef(null);
+  useReaderDialog(open, onClose, closeRef, dialogRef, restoreFocusRef);
 
   if (!open) return null;
 
   return <div
+    ref={dialogRef}
     className="wechat-dialog content-reader"
     role="dialog"
     aria-modal="true"
-    aria-label="微信二维码"
+    aria-label={copy.wechat.dialogAria}
     onMouseDown={(event) => {
       if (event.target === event.currentTarget) onClose();
     }}
   >
     <div className="wechat-dialog__panel">
-      <button ref={closeRef} className="wechat-dialog__close" type="button" onClick={onClose} aria-label="关闭微信二维码">
+      <button ref={closeRef} className="wechat-dialog__close" type="button" onClick={onClose} aria-label={copy.wechat.closeAria}>
         <X size={21} aria-hidden="true" />
       </button>
       <p className="wechat-dialog__eyebrow">WECHAT / CONTACT</p>
       <figure className="contact__qr">
-        <div><img src={profile.wechat.qr} alt={`微信 ${profile.wechat.label} 的二维码`} /></div>
-        <figcaption><WechatLogo size={18} aria-hidden="true" /><span>微信号<strong>{profile.wechat.label}</strong></span></figcaption>
+        <div><img src={profile.wechat.qr} alt={copy.wechat.qrAlt(profile.wechat.label)} decoding="async" /></div>
+        <figcaption><WechatLogo size={18} aria-hidden="true" /><span>{copy.wechat.idLabel}<strong>{profile.wechat.label}</strong></span></figcaption>
       </figure>
     </div>
   </div>;
 }
 export function App() {
+  return <LocaleProvider><AppContent /></LocaleProvider>;
+}
+
+function AppContent() {
+  const { locale, copy } = useLocale();
+  const localizedArticles = useMemo(() => getArticles(locale), [locale]);
+  const localizedProjects = useMemo(() => getProjects(locale), [locale]);
   useScrollProgress();
   const [pathname, setPathname] = useState(() => window.location.pathname);
   const [wechatOpen, setWechatOpen] = useState(false);
   const [hardReloadIntent] = useState(hasFreshHardReloadIntent);
-  const [booting, setBooting] = useState(true);
+  const [booting, setBooting] = useState(() => !isBlogRoute(window.location.pathname));
   const [sceneLoad, setSceneLoad] = useState({
     status: "LOADING SPACE RUNTIME",
+    progress: 0,
     ready: false,
     forceFallback: false,
+  });
+  const [criticalLoad, setCriticalLoad] = useState({
+    key: null,
+    status: "LOADING PAGE ASSETS",
+    progress: 0,
+    ready: false,
+    degraded: false,
   });
   const [introRunKey, setIntroRunKey] = useState(0);
   const [introActive, setIntroActive] = useState(() => (
@@ -803,10 +1000,47 @@ export function App() {
     )
   ));
   const contentRoute = parseContentRoute(pathname);
-  const activeArticle = contentRoute?.type === "article" ? articles.find((article) => article.id === contentRoute.id) || null : null;
-  const activeProject = contentRoute?.type === "project" ? projects.find((project) => project.id === contentRoute.id) || null : null;
+  const blogRoute = parseBlogRoute(pathname);
+  const activeBlogPost = blogRoute?.view === "post" ? getBlogPostBySlug(blogRoute.slug) : null;
+  const blogOpen = blogRoute?.view === "index" || Boolean(activeBlogPost);
+  const activeArticle = contentRoute?.type === "article" ? localizedArticles.find((article) => article.id === contentRoute.id) || null : null;
+  const activeProject = contentRoute?.type === "project" ? localizedProjects.find((project) => project.id === contentRoute.id) || null : null;
+  const activeContentItem = activeArticle || activeProject;
+  const activeContentKey = contentRoute && activeContentItem ? `${locale}:${contentRoute.type}:${activeContentItem.id}` : null;
+  const criticalPageKey = `page:${locale}:${pathname}`;
   const readerOpen = Boolean(activeArticle || activeProject);
-  const isNotFound = pathname !== "/" && (!contentRoute || !readerOpen);
+  const isNotFound = pathname !== "/" && !blogOpen && (!contentRoute || !readerOpen);
+  const wechatDialogOpen = pathname === "/" && wechatOpen;
+  const [readerContentReadyKey, setReaderContentReadyKey] = useState(null);
+  const markReaderContentReady = useCallback(() => {
+    if (activeContentKey) setReaderContentReadyKey(activeContentKey);
+  }, [activeContentKey]);
+
+  useEffect(() => {
+    if (!activeContentItem) return;
+    void loadMarkdownContentModule().catch(() => {});
+    void activeContentItem.loadBody().catch(() => {});
+  }, [activeContentItem]);
+
+  useEffect(() => subscribeCriticalResources({
+    key: criticalPageKey,
+    label: activeContentItem
+      ? "LOADING READER ASSETS"
+      : activeBlogPost ? "LOADING BLOG POST" : blogOpen ? "LOADING BLOG" : "LOADING PROJECT MEDIA",
+    images: isNotFound
+      ? []
+      : blogOpen ? [] : [
+          ...localizedProjects.map((project) => project.cover),
+          ...(activeContentItem?.images ?? []),
+        ],
+    loaders: activeContentItem
+      ? [loadMarkdownContentModule, activeContentItem.loadBody]
+      : activeBlogPost ? [loadBlogPostPageModule] : blogOpen ? [loadBlogPageModule] : [],
+  }, setCriticalLoad), [activeBlogPost, activeContentItem, blogOpen, criticalPageKey, isNotFound, localizedProjects]);
+
+  useLayoutEffect(() => {
+    if (pathname !== "/" && wechatOpen) setWechatOpen(false);
+  }, [pathname, wechatOpen]);
 
   const pendingReturnScrollYRef = useRef(null);
   const skipHashRestoreRef = useRef(false);
@@ -814,9 +1048,28 @@ export function App() {
   const projectTransitionActiveRef = useRef(false);
   const projectTransitionRuntimeRef = useRef(null);
   const projectTransitionDirectionRef = useRef(null);
+  const readerClosePendingRef = useRef(false);
+  const articleTriggerRef = useRef(null);
+  const wechatTriggerRef = useRef(null);
+  const blogGatewayTriggerRef = useRef(null);
+  const pendingBlogReturnScrollYRef = useRef(null);
+  const restoreBlogGatewayFocusRef = useRef(false);
+  const pendingBlogIndexScrollYRef = useRef(null);
+  const blogPostTriggerKeyRef = useRef(null);
   const pathnameRef = useRef(pathname);
   pathnameRef.current = pathname;
   const [projectTransitionActive, setProjectTransitionActive] = useState(false);
+  const [blogGatewayTransitionActive, setBlogGatewayTransitionActive] = useState(false);
+
+  const prepareHomeScene = useCallback(() => {
+    setSceneLoad((current) => current.forceFallback ? current : {
+      status: "LOADING SPACE RUNTIME",
+      progress: 0,
+      ready: false,
+      forceFallback: false,
+    });
+    setBooting(true);
+  }, []);
 
   const restoreProjectTriggerFocus = useCallback(() => {
     window.requestAnimationFrame(() => {
@@ -838,7 +1091,10 @@ export function App() {
     update,
     restoreFocus = false,
   }) => {
-    if (!canUseProjectViewTransition(sourceElement) || projectTransitionActiveRef.current) {
+    if (projectTransitionActiveRef.current) {
+      return projectTransitionRuntimeRef.current?.transition ?? null;
+    }
+    if (!canUseProjectViewTransition(sourceElement)) {
       update();
       if (restoreFocus) restoreProjectTriggerFocus();
       return null;
@@ -869,6 +1125,7 @@ export function App() {
         projectTransitionRuntimeRef.current = null;
         projectTransitionDirectionRef.current = null;
       }
+      if (direction === "closing") readerClosePendingRef.current = false;
       setProjectTransitionActive(false);
       if (restoreFocus && !skipFocus) restoreProjectTriggerFocus();
     };
@@ -878,7 +1135,7 @@ export function App() {
 
     try {
       const transition = document.startViewTransition(() => {
-        if (runtime.cancelled) return;
+        if (runtime.cancelled || projectTransitionRuntimeRef.current !== runtime) return;
         if (direction === "opening") sourceElement.style.removeProperty("view-transition-name");
         updateCommitted = true;
         flushSync(update);
@@ -888,7 +1145,7 @@ export function App() {
       transition.finished.catch(() => {}).finally(finish);
       return transition;
     } catch {
-      if (!updateCommitted && !runtime.cancelled) flushSync(update);
+      if (!updateCommitted && !runtime.cancelled && projectTransitionRuntimeRef.current === runtime) flushSync(update);
       finish();
       return null;
     }
@@ -933,7 +1190,7 @@ export function App() {
     });
   }, []);
 
-  const appScrollLocked = readerOpen || wechatOpen || projectTransitionActive;
+  const appScrollLocked = readerOpen || wechatDialogOpen || projectTransitionActive;
 
   useLayoutEffect(() => {
     if (!appScrollLocked) return undefined;
@@ -946,20 +1203,63 @@ export function App() {
 
   useEffect(() => {
     const onPopState = (event) => {
-      const nextPathname = window.location.pathname;
-      const nextRoute = parseContentRoute(nextPathname);
       const activeRuntimeAtNavigation = projectTransitionRuntimeRef.current;
-      if (activeRuntimeAtNavigation?.direction === "closing") {
+      const cancelledOpening = activeRuntimeAtNavigation?.direction === "opening";
+      if (activeRuntimeAtNavigation) {
         activeRuntimeAtNavigation.cancelled = true;
         activeRuntimeAtNavigation.transition?.skipTransition?.();
         activeRuntimeAtNavigation.finish({ skipFocus: true });
+      }
+
+      const nextPathname = window.location.pathname;
+      const nextRoute = parseContentRoute(nextPathname);
+      const nextBlogRoute = parseBlogRoute(nextPathname);
+      const nextBlogPost = nextBlogRoute?.view === "post"
+        ? getBlogPostBySlug(nextBlogRoute.slug)
+        : null;
+      const nextBlogIsValid = nextBlogRoute?.view === "index" || Boolean(nextBlogPost);
+      const previousBlogRoute = parseBlogRoute(pathnameRef.current);
+      if (nextBlogIsValid) {
+        if (previousBlogRoute?.view === "post" && nextBlogRoute?.view === "index") {
+          const storedIndexScrollY = Number(event.state?.blogIndexReturnY);
+          pendingBlogIndexScrollYRef.current = Number.isFinite(storedIndexScrollY)
+            ? storedIndexScrollY
+            : 0;
+        } else if (nextBlogRoute?.view === "post") {
+          pendingBlogIndexScrollYRef.current = null;
+        }
+        pendingBlogReturnScrollYRef.current = null;
+        restoreBlogGatewayFocusRef.current = false;
+        setBlogGatewayTransitionActive(false);
+        setBooting(false);
+        setPathname(nextPathname);
+        readerClosePendingRef.current = false;
+        return;
+      }
+      if (activeRuntimeAtNavigation?.direction === "closing") {
         const context = projectTransitionContextRef.current;
         if (nextRoute?.type === "project" && nextRoute.id === context?.projectId) {
+          readerClosePendingRef.current = false;
           setPathname(nextPathname);
           return;
         }
       }
       const previousRoute = parseContentRoute(pathnameRef.current);
+      const previousWasBlog = isBlogRoute(pathnameRef.current);
+      if (previousWasBlog && nextPathname === "/") {
+        const storedReturnScrollY = Number(event.state?.blogReturnY);
+        pendingBlogReturnScrollYRef.current = Number.isFinite(storedReturnScrollY)
+          ? storedReturnScrollY
+          : 0;
+        restoreBlogGatewayFocusRef.current = true;
+        pendingBlogIndexScrollYRef.current = null;
+        blogPostTriggerKeyRef.current = null;
+        setBlogGatewayTransitionActive(false);
+        prepareHomeScene();
+        setPathname(nextPathname);
+        readerClosePendingRef.current = false;
+        return;
+      }
       const returningFromReader = Boolean(previousRoute) && nextPathname === "/";
       if (returningFromReader) {
         const storedReturnScrollY = Number(event.state?.contentReturnY);
@@ -976,13 +1276,8 @@ export function App() {
         if (previousRoute?.type === "project") {
           const context = projectTransitionContextRef.current;
           const sourceElement = context?.projectId === previousRoute.id ? context.sourceElement : null;
-          const activeRuntime = projectTransitionRuntimeRef.current;
-          if (activeRuntime) {
-            activeRuntime.cancelled = true;
-            activeRuntime.transition?.skipTransition?.();
-            activeRuntime.finish();
-          }
           if (canUseProjectViewTransition(sourceElement)) {
+            readerClosePendingRef.current = true;
             runProjectViewTransition({
               direction: "closing",
               sourceElement,
@@ -997,6 +1292,7 @@ export function App() {
         }
 
         setPathname(nextPathname);
+        readerClosePendingRef.current = false;
         if (Number.isFinite(returnScrollY)) {
           restoreReaderReturnPosition(returnScrollY);
           if (previousRoute?.type === "project") restoreProjectTriggerFocus();
@@ -1004,15 +1300,41 @@ export function App() {
         }
       }
       setPathname(nextPathname);
-      if (nextPathname === "/") scrollToCurrentHash();
+      readerClosePendingRef.current = false;
+      if (nextPathname === "/") {
+        scrollToCurrentHash();
+        if (cancelledOpening) restoreProjectTriggerFocus();
+      }
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
-  }, [restoreProjectTriggerFocus, restoreReaderReturnPosition, runProjectViewTransition, scrollToCurrentHash]);
+  }, [prepareHomeScene, restoreProjectTriggerFocus, restoreReaderReturnPosition, runProjectViewTransition, scrollToCurrentHash]);
+
+  useEffect(() => {
+    if (!readerOpen) readerClosePendingRef.current = false;
+  }, [readerOpen]);
 
   useEffect(() => {
     if (booting) return;
     if (pathname !== "/") return;
+    if (Number.isFinite(pendingBlogReturnScrollYRef.current)) {
+      const returnScrollY = pendingBlogReturnScrollYRef.current;
+      pendingBlogReturnScrollYRef.current = null;
+      let secondFrame = 0;
+      const firstFrame = window.requestAnimationFrame(() => {
+        secondFrame = window.requestAnimationFrame(() => {
+          window.scrollTo({ top: returnScrollY, behavior: "auto" });
+          if (restoreBlogGatewayFocusRef.current) {
+            restoreBlogGatewayFocusRef.current = false;
+            blogGatewayTriggerRef.current?.focus({ preventScroll: true });
+          }
+        });
+      });
+      return () => {
+        window.cancelAnimationFrame(firstFrame);
+        window.cancelAnimationFrame(secondFrame);
+      };
+    }
     if (skipHashRestoreRef.current) {
       skipHashRestoreRef.current = false;
       return;
@@ -1020,7 +1342,39 @@ export function App() {
     scrollToCurrentHash();
   }, [booting, pathname, scrollToCurrentHash]);
 
+  useEffect(() => {
+    if (parseBlogRoute(pathname)?.view !== "index"
+      || !Number.isFinite(pendingBlogIndexScrollYRef.current)) return undefined;
+    const returnScrollY = pendingBlogIndexScrollYRef.current;
+    pendingBlogIndexScrollYRef.current = null;
+    let frame = 0;
+    let attempts = 0;
+
+    const restore = () => {
+      const blogPage = document.querySelector(".blog-page");
+      if (!blogPage && attempts < 120) {
+        attempts += 1;
+        frame = window.requestAnimationFrame(restore);
+        return;
+      }
+      window.scrollTo({ top: returnScrollY, behavior: "auto" });
+      const triggerKey = blogPostTriggerKeyRef.current;
+      blogPostTriggerKeyRef.current = null;
+      if (!triggerKey) return;
+      document.querySelector(`[data-blog-post-entry="${triggerKey}"]`)?.focus({ preventScroll: true });
+    };
+
+    frame = window.requestAnimationFrame(restore);
+    return () => window.cancelAnimationFrame(frame);
+  }, [pathname]);
+
   const openContent = useCallback((type, id) => {
+    const contentItem = (type === "article" ? localizedArticles : localizedProjects)
+      .find((item) => item.id === id);
+    if (!contentItem) return;
+    void loadMarkdownContentModule().catch(() => {});
+    void contentItem.loadBody().catch(() => {});
+    readerClosePendingRef.current = false;
     const nextPath = contentRoutePath(type, id);
     const returnScrollY = window.scrollY;
     const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
@@ -1028,9 +1382,11 @@ export function App() {
     window.history.replaceState({ ...(window.history.state || {}), contentReturnY: returnScrollY }, "", currentUrl);
     window.history.pushState({ contentOverlay: true }, "", nextPath);
     setPathname(nextPath);
-  }, []);
+  }, [localizedArticles, localizedProjects]);
 
   const closeContent = useCallback(() => {
+    if (readerClosePendingRef.current) return;
+    readerClosePendingRef.current = true;
     const fallbackHash = contentRoute?.type === "project" ? "#projects" : "#contact";
     if (window.history.state?.contentOverlay) {
       window.history.back();
@@ -1040,17 +1396,97 @@ export function App() {
     setPathname("/");
     window.requestAnimationFrame(() => {
       document.querySelector(fallbackHash)?.scrollIntoView({ behavior: "auto", block: "start" });
+      readerClosePendingRef.current = false;
     });
   }, [contentRoute]);
 
   const goHome = useCallback(() => {
+    readerClosePendingRef.current = false;
     window.history.replaceState(null, "", "/");
+    prepareHomeScene();
     setPathname("/");
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [prepareHomeScene]);
+
+  const primeBlog = useCallback(() => loadBlogPageModule(), []);
+
+  const openBlog = useCallback(() => {
+    if (pathnameRef.current !== "/" || projectTransitionActiveRef.current) return;
+    const returnScrollY = window.scrollY;
+    const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    window.history.replaceState(
+      { ...(window.history.state || {}), blogReturnY: returnScrollY },
+      "",
+      currentUrl,
+    );
+    window.history.pushState({ blogOverlay: true }, "", BLOG_PATH);
+    pendingBlogReturnScrollYRef.current = null;
+    restoreBlogGatewayFocusRef.current = false;
+    pendingBlogIndexScrollYRef.current = null;
+    blogPostTriggerKeyRef.current = null;
+    setBooting(false);
+    flushSync(() => setPathname(BLOG_PATH));
     window.scrollTo({ top: 0, behavior: "auto" });
   }, []);
 
-  const openArticle = useCallback((id) => openContent("article", id), [openContent]);
+  const closeBlog = useCallback(() => {
+    if (window.history.state?.blogOverlay) {
+      window.history.back();
+      return;
+    }
+    pendingBlogReturnScrollYRef.current = 0;
+    restoreBlogGatewayFocusRef.current = false;
+    pendingBlogIndexScrollYRef.current = null;
+    blogPostTriggerKeyRef.current = null;
+    window.history.replaceState(null, "", "/");
+    prepareHomeScene();
+    setPathname("/");
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [prepareHomeScene]);
+
+  const openBlogPost = useCallback((slug, triggerElement) => {
+    const post = getBlogPostBySlug(slug);
+    const currentBlogRoute = parseBlogRoute(pathnameRef.current);
+    if (!post || !currentBlogRoute || post.slug === currentBlogRoute.slug) return;
+    void loadBlogPostPageModule().catch(() => {});
+    if (currentBlogRoute.view === "index") {
+      const returnScrollY = window.scrollY;
+      const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      pendingBlogIndexScrollYRef.current = null;
+      blogPostTriggerKeyRef.current = triggerElement?.dataset.blogPostEntry ?? null;
+      window.history.replaceState(
+        { ...(window.history.state || {}), blogIndexReturnY: returnScrollY },
+        "",
+        currentUrl,
+      );
+    }
+    window.history.pushState({ blogPostOverlay: true }, "", post.href);
+    setBooting(false);
+    setPathname(post.href);
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, []);
+
+  const closeBlogPost = useCallback(() => {
+    if (window.history.state?.blogPostOverlay) {
+      window.history.back();
+      return;
+    }
+    pendingBlogIndexScrollYRef.current = 0;
+    blogPostTriggerKeyRef.current = null;
+    void loadBlogPageModule().catch(() => {});
+    window.history.replaceState(null, "", BLOG_PATH);
+    setBooting(false);
+    setPathname(BLOG_PATH);
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, []);
+
+  const openArticle = useCallback((id, triggerElement) => {
+    if (projectTransitionActiveRef.current) return;
+    articleTriggerRef.current = triggerElement ?? null;
+    openContent("article", id);
+  }, [openContent]);
   const openProject = useCallback((id, sourceElement, triggerElement) => {
+    if (projectTransitionActiveRef.current) return;
     projectTransitionContextRef.current = {
       projectId: id,
       sourceElement,
@@ -1084,11 +1520,14 @@ export function App() {
     setBooting(false);
   }, [introActive, pathname]);
 
-  const updateSceneLoad = useCallback(({ status = "WARMING SPACE SCENE" } = {}) => {
+  const updateSceneLoad = useCallback(({ progress, status = "WARMING SPACE SCENE" } = {}) => {
     setSceneLoad((current) => {
       if (current.forceFallback) return current;
-      if (status === current.status) return current;
-      return { ...current, status };
+      const nextProgress = Number.isFinite(progress)
+        ? Math.max(current.progress, Math.min(1, Math.max(0, progress)))
+        : current.progress;
+      if (status === current.status && nextProgress === current.progress) return current;
+      return { ...current, progress: nextProgress, status };
     });
   }, []);
 
@@ -1096,16 +1535,18 @@ export function App() {
     setSceneLoad((current) => current.forceFallback ? current : {
       ...current,
       status: mode === "bennu" ? "SPACE SCENE READY" : "SCENE READY / COMPATIBILITY MODE",
+      progress: 1,
       ready: true,
     });
   }, []);
 
   const forceSceneFallback = useCallback(() => {
-    setSceneLoad({
+    setSceneLoad((current) => current.ready ? current : ({
       status: "SCENE READY / COMPATIBILITY MODE",
+      progress: 1,
       ready: true,
       forceFallback: true,
-    });
+    }));
   }, []);
 
   const replayOpening = useCallback(() => {
@@ -1118,21 +1559,52 @@ export function App() {
     if (pathname !== "/") setIntroActive(false);
   }, [pathname]);
 
-  const bootReady = pathname !== "/" || sceneLoad.ready;
+  const criticalLoadMatchesPage = criticalLoad.key === criticalPageKey;
+  const pageResourceProgress = criticalLoadMatchesPage ? criticalLoad.progress : 0;
+  const readerContentReady = !activeContentKey || readerContentReadyKey === activeContentKey;
+  const sceneReadyForPage = isNotFound || blogOpen || sceneLoad.ready;
+  const sceneProgressForPage = isNotFound || blogOpen ? 1 : sceneLoad.progress;
+  const bootReady = sceneReadyForPage && criticalLoadMatchesPage && criticalLoad.ready && readerContentReady;
+  const bootProgress = sceneProgressForPage * 0.58 + pageResourceProgress * 0.42;
+  const bootStatus = !sceneReadyForPage
+    ? sceneLoad.status
+    : !criticalLoadMatchesPage ? "LOADING PAGE ASSETS" : !criticalLoad.ready ? criticalLoad.status : criticalLoad.degraded
+      ? criticalLoad.status
+      : !readerContentReady ? "RENDERING READER" : sceneLoad.status;
+  const sceneEnabled = !blogOpen && !isNotFound;
+  const sceneSuspended = readerOpen
+    || wechatDialogOpen
+    || blogGatewayTransitionActive
+    || (projectTransitionActive && projectTransitionDirectionRef.current === "closing");
   const homeIsInert = booting
     || readerOpen
-    || wechatOpen
+    || wechatDialogOpen
+    || blogGatewayTransitionActive
     || (projectTransitionActive && projectTransitionDirectionRef.current === "closing");
 
   return <>
-    {booting && <VibeBootLoader
+    {booting && !blogOpen && <VibeBootLoader
       ready={bootReady}
-      status={pathname === "/" ? sceneLoad.status : "INTERFACE READY"}
+      progress={bootProgress}
+      status={bootStatus}
       onComplete={completeBoot}
-      onTimeout={pathname === "/" ? forceSceneFallback : undefined}
+      onTimeout={forceSceneFallback}
     />}
     {isNotFound ? <div aria-hidden={booting ? "true" : undefined} inert={booting ? true : undefined}>
       <NotFoundPage path={pathname} onGoHome={goHome} />
+    </div> : blogOpen ? <div>
+      <Suspense fallback={<main className="blog-page blog-page--loading" aria-hidden="true" />}>
+        {activeBlogPost ? <LazyBlogPostPage
+          post={activeBlogPost}
+          onBack={closeBlogPost}
+          onOpenPost={openBlogPost}
+          focusOnMount={Boolean(window.history.state?.blogPostOverlay)}
+        /> : <LazyBlogPage
+          onBack={closeBlog}
+          onOpenPost={openBlogPost}
+          focusOnMount={Boolean(window.history.state?.blogOverlay)}
+        />}
+      </Suspense>
     </div> : <>
       <main id="top" aria-hidden={homeIsInert ? "true" : undefined} inert={homeIsInert ? true : undefined}>
         <VibeCodingOpening
@@ -1143,12 +1615,20 @@ export function App() {
           settledTrackVh={portfolioJourneyMetrics.trackVh}
           journeyWaypoints={portfolioJourneyMetrics.waypoints}
           chrome={<PageChrome onReplay={replayOpening} />}
-          hero={<HeroSection forceSceneFallback={sceneLoad.forceFallback} onSceneProgress={updateSceneLoad} onSceneReady={completeSceneLoad} />}
+          hero={<HeroSection
+            forceSceneFallback={sceneLoad.forceFallback}
+            onSceneProgress={updateSceneLoad}
+            onSceneReady={completeSceneLoad}
+            sceneEnabled={sceneEnabled}
+            sceneSuspended={sceneSuspended}
+          />}
           journey={<PortfolioJourney
             active={!introActive && !booting}
             suspended={readerOpen
+              || wechatDialogOpen
+              || blogGatewayTransitionActive
               || (projectTransitionActive && projectTransitionDirectionRef.current === "closing")}
-            projects={projects}
+            projects={localizedProjects}
             onOpenProject={openProject}
           />}
         />
@@ -1157,23 +1637,23 @@ export function App() {
             <header className="contact__lead">
               <p className="eyebrow">ARTICLES / CONTACT / 04</p>
               <h2 id="contact-title">
-                <span>做点有意思的</span>
-                <span>让技术，跟上想法<em>/</em></span>
+                <span>{copy.contact.titleLine1}</span>
+                <span>{copy.contact.titleLine2}<em>/</em></span>
               </h2>
             </header>
             <div className="contact__aside">
-              <p className="contact__note">很多项目的开始，往往只是一个让我感到好奇的问题。我更相信好奇心，而不是一条固定的技术路线。灵感出现时，先让它自由生长；技术不够，就继续学习，直到它拥有可以落地的形状。</p>
+              <p className="contact__note">{copy.contact.note}</p>
             </div>
             <section className="contact__writing" aria-labelledby="contact-writing-title">
               <div className="contact__writing-heading">
-                <h3 id="contact-writing-title">读读我的想法</h3>
+                <h3 id="contact-writing-title">{copy.contact.writingTitle}</h3>
               </div>
               <div className="contact__article-list">
-                {articles.map((article) => <button
+                {localizedArticles.map((article) => <button
                   className="contact__article-link"
                   type="button"
                   aria-haspopup="dialog"
-                  onClick={() => openArticle(article.id)}
+                  onClick={(event) => openArticle(article.id, event.currentTarget)}
                   key={article.id}
                 >
                   <span className="contact__article-index" aria-hidden="true">{article.index}</span>
@@ -1185,19 +1665,34 @@ export function App() {
                 </button>)}
               </div>
             </section>
-            <div className="contact__links" aria-label="联系渠道">
-              <p className="contact__links-title">联系我</p>
+            <div className="contact__links" aria-label={copy.contact.channelsAria}>
+              <p className="contact__links-title">{copy.contact.linksTitle}</p>
               <a href={`mailto:${profile.email}`}><EnvelopeSimple size={22} aria-hidden="true" /><span><small>EMAIL</small>{profile.email}</span></a>
               <a href={profile.github.url} target="_blank" rel="noreferrer"><GithubLogo size={22} aria-hidden="true" /><span><small>GITHUB</small>{profile.github.label}</span></a>
-              <button className="contact__wechat-id" type="button" aria-haspopup="dialog" onClick={() => setWechatOpen(true)}><WechatLogo size={22} aria-hidden="true" /><span><small>WECHAT</small>{profile.wechat.label}</span></button>
+              <button className="contact__wechat-id" type="button" aria-haspopup="dialog" onClick={(event) => {
+                wechatTriggerRef.current = event.currentTarget;
+                setWechatOpen(true);
+              }}><WechatLogo size={22} aria-hidden="true" /><span><small>WECHAT</small>{profile.wechat.label}</span></button>
             </div>
             <a className="contact__return" href="#top" onClick={handlePageAnchorClick}><span>BACK TO TOP</span><ArrowUpRight size={19} aria-hidden="true" /></a>
           </div>
         </section>
       </main>
-      <WechatDialog open={wechatOpen} onClose={() => setWechatOpen(false)} />
-      <ArticleReader article={booting ? null : activeArticle} onClose={closeContent} />
-      <ProjectReader project={booting ? null : activeProject} onClose={closeContent} />
+      <WechatDialog open={wechatDialogOpen} onClose={() => setWechatOpen(false)} restoreFocusRef={wechatTriggerRef} />
+      <ArticleReader article={activeArticle} interactive={!booting} onClose={closeContent} onContentReady={markReaderContentReady} restoreFocusRef={articleTriggerRef} />
+      <ProjectReader project={activeProject} interactive={!booting} onClose={closeContent} onContentReady={markReaderContentReady} />
     </>}
+    <BlogCornerGateway
+      active={pathname === "/"
+        && !booting
+        && !introActive
+        && !readerOpen
+        && !wechatDialogOpen
+        && !projectTransitionActive}
+      onEnter={openBlog}
+      onPrime={primeBlog}
+      onTransitionChange={setBlogGatewayTransitionActive}
+      triggerRef={blogGatewayTriggerRef}
+    />
   </>;
 }

@@ -12,6 +12,7 @@ import {
   getPortfolioJourneyMetrics,
   PROJECT_FIRST_CENTER_UNITS,
 } from "./portfolioJourneyTimeline.js";
+import { useLocale } from "./i18n.jsx";
 import "./portfolio-journey.css";
 
 const clamp = (value, minimum = 0, maximum = 1) => Math.min(maximum, Math.max(minimum, value));
@@ -56,6 +57,7 @@ function ProjectDestination({ project }) {
 }
 
 export function PortfolioJourney({ active, suspended = false, projects, onOpenProject }) {
+  const { copy, locale } = useLocale();
   const rootRef = useRef(null);
   const stackRef = useRef(null);
   const stackGroupRefs = useRef(new Map());
@@ -90,11 +92,16 @@ export function PortfolioJourney({ active, suspended = false, projects, onOpenPr
   const [contactActive, setContactActive] = useState(false);
   const [detailProjectId, setDetailProjectId] = useState(null);
   const [rotationPaused, setRotationPaused] = useState(false);
+  const [mediaActivated, setMediaActivated] = useState(false);
   const [staticMode, setStaticMode] = useState(() => window.matchMedia(
     "(max-width: 760px), (max-height: 660px), (prefers-reduced-motion: reduce)",
   ).matches);
   const metrics = useMemo(() => getPortfolioJourneyMetrics(projects.length), [projects.length]);
   const uniqueTechnologies = useMemo(() => collectProjectTechnologies(projects), [projects]);
+
+  useEffect(() => {
+    if (active && !suspended) setMediaActivated(true);
+  }, [active, suspended]);
 
   useEffect(() => {
     const media = window.matchMedia(
@@ -740,7 +747,7 @@ export function PortfolioJourney({ active, suspended = false, projects, onOpenPr
   return <section
     ref={rootRef}
     className="portfolio-journey"
-    aria-label="项目与技术栈"
+    aria-label={copy.journey.sectionAria}
     data-static={staticMode ? "true" : "false"}
     data-suspended={suspended ? "true" : "false"}
     data-stack-active={stackActive || staticMode ? "true" : "false"}
@@ -750,7 +757,7 @@ export function PortfolioJourney({ active, suspended = false, projects, onOpenPr
     <div
       ref={projectPlaneRef}
       className="portfolio-journey__project-plane"
-      aria-label="可拖拽旋转的项目环"
+      aria-label={copy.journey.ringAria}
       inert={!staticMode && (suspended || handoffActive || stackActive) ? true : undefined}
       onPointerDown={beginRingDrag}
       onPointerMove={moveRingDrag}
@@ -762,7 +769,7 @@ export function PortfolioJourney({ active, suspended = false, projects, onOpenPr
       <header className="portfolio-journey__heading">
         <div className="portfolio-journey__system-controls">
           <p className="portfolio-journey__register">
-            <strong>我的项目</strong>
+            <strong>{copy.journey.title}</strong>
             <span className="portfolio-journey__register-count">
               {String(Math.max(0, activeIndex) + 1).padStart(2, "0")}
               &nbsp;/&nbsp;{String(projects.length).padStart(2, "0")}
@@ -774,19 +781,19 @@ export function PortfolioJourney({ active, suspended = false, projects, onOpenPr
             data-ring-control="true"
             data-paused={rotationPaused ? "true" : "false"}
             aria-pressed={rotationPaused}
-            aria-label={rotationPaused ? "继续项目环自动旋转" : "暂停项目环自动旋转"}
+            aria-label={rotationPaused ? copy.journey.resumeAria : copy.journey.pauseAria}
             tabIndex={!staticMode && (suspended || handoffActive || stackActive) ? -1 : 0}
             onClick={toggleRotation}
           >
             <i aria-hidden="true" />
             <span>AUTO / {rotationPaused ? "OFF" : "ON"}</span>
           </button>
-          <span className="portfolio-journey__drag-hint">拖动以旋转</span>
+          <span className="portfolio-journey__drag-hint">{copy.journey.dragHint}</span>
         </div>
       </header>
 
       {projects.map((project, projectIndex) => {
-        const isCurrent = staticMode || activeIndex === projectIndex;
+        const isCurrent = !staticMode && activeIndex === projectIndex;
         const isDetailed = staticMode || detailProjectId === project.id;
         const cardsAreInteractive = staticMode
           || (activeIndex >= 0 && !suspended && !stackActive && !handoffActive);
@@ -820,13 +827,13 @@ export function PortfolioJourney({ active, suspended = false, projects, onOpenPr
           key={project.id}
         >
           <div className="portfolio-project__media">
-            <img src={project.cover} alt={`${project.title} 项目视觉`} loading="lazy" />
+            <img src={mediaActivated ? project.cover : undefined} alt={copy.journey.projectVisualAlt(project.title)} loading="lazy" decoding="async" fetchPriority="low" />
             <p>{project.index} / {project.year}</p>
           </div>
           <button
             className="portfolio-project__open-hit"
             type="button"
-            aria-label={`打开 ${project.title} 项目`}
+            aria-label={copy.journey.openProjectAria(project.title)}
             onClick={(event) => {
               if (performance.now() < ringInteractionRef.current.blockClickUntil) {
                 event.preventDefault();
@@ -850,7 +857,7 @@ export function PortfolioJourney({ active, suspended = false, projects, onOpenPr
                 type="button"
                 onClick={(event) => onOpenProject(project.id, projectRefs.current.get(project.id), event.currentTarget)}
               >
-                查看项目 <ArrowRight size={17} weight="bold" aria-hidden="true" />
+                {copy.journey.viewProject} <ArrowRight size={17} weight="bold" aria-hidden="true" />
               </button>
               <ProjectDestination project={project} />
             </div>
@@ -868,17 +875,17 @@ export function PortfolioJourney({ active, suspended = false, projects, onOpenPr
 
     <div className="portfolio-journey__handoff" aria-hidden="true">
       <p className="portfolio-journey__handoff-from">
-        从想法到项目的路上
+        {copy.journey.handoffFrom}
       </p>
       <p className="portfolio-journey__handoff-into">
-        技术让<span className="portfolio-journey__handoff-accent">创意</span>变成<span className="portfolio-journey__handoff-accent">现实</span>
+        {copy.journey.handoff.before}<span className="portfolio-journey__handoff-accent">{copy.journey.handoff.accent1}</span>{copy.journey.handoff.middle}<span className="portfolio-journey__handoff-accent">{copy.journey.handoff.accent2}</span>
       </p>
     </div>
 
     <section
       ref={stackRef}
       className="portfolio-stack"
-      aria-label="技术栈与能力"
+      aria-label={copy.journey.stackAria}
       aria-hidden={(stackActive || staticMode) && !contactActive ? undefined : "true"}
       inert={(stackActive || staticMode) && !contactActive ? undefined : true}
     >
@@ -895,7 +902,7 @@ export function PortfolioJourney({ active, suspended = false, projects, onOpenPr
             key={group.id}
           >
             <p>{group.eyebrow}</p>
-            <h3>{group.title}</h3>
+            <h3>{locale === "en" ? group.titleEn : group.title}</h3>
             <ul className="portfolio-stack__semantic-list">
               {technologies.map((technology) => <li data-kind={technology.kind} key={technology.id}>
                 {technology.label}{technology.sources.length > 1 ? ` ×${technology.sources.length}` : ""}
