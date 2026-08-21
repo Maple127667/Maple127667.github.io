@@ -33,13 +33,27 @@ function renderText(text) {
   );
 }
 
-function renderParagraph(text, index, variant) {
+function renderParts(parts) {
+  return parts.map((part, partIndex) => {
+    const segment = typeof part === "string" ? { type: "text", text: part } : part;
+    const key = `${partIndex}-${segment.text?.slice(0, 8) || segment.type}`;
+    const content = renderText(segment.text || "");
+
+    if (segment.type === "strong") return <strong key={key}>{content}</strong>;
+    if (segment.type === "strike") return <s key={key}>{content}</s>;
+    return <span key={key}>{content}</span>;
+  });
+}
+
+function renderParagraph(text, index, variant, parts) {
+  const paragraphText = text ?? parts?.map((part) => typeof part === "string" ? part : part.text).join("") ?? "";
+
   return (
     <p
-      key={`${index}-${text.slice(0, 12)}`}
+      key={`${index}-${paragraphText.slice(0, 12)}`}
       className={variant ? `blog-post__paragraph blog-post__paragraph--${variant}` : "blog-post__paragraph"}
     >
-      {renderText(text)}
+      {parts?.length > 0 ? renderParts(parts) : renderText(paragraphText)}
     </p>
   );
 }
@@ -108,7 +122,7 @@ function renderBlock(block, index, prefix = "body") {
   const key = `${prefix}-${block.id || block.title || block.type || "block"}-${index}`;
 
   if (block.type === "paragraph") {
-    return renderParagraph(block.text, key, block.variant);
+    return renderParagraph(block.text, key, block.variant, block.parts);
   }
 
   if (block.type === "quote") {

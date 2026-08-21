@@ -453,6 +453,16 @@ body[data-blog-theme="dark"] {
   display: inline;
 }
 
+.blog-post__body strong {
+  color: var(--post-ink);
+  font-weight: 680;
+}
+
+.blog-post__body s {
+  color: var(--post-muted);
+  text-decoration-thickness: 1px;
+}
+
 .blog-post__paragraph--notice {
   padding-left: 22px;
   border-left: 2px solid var(--post-blue);
