@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
+import { BLOG_POSTS } from "../src/content/blogPosts.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dist = path.join(root, "dist");
@@ -28,6 +29,8 @@ function contentRoutes(directory, collection) {
 }
 
 const knownRoutes = [
+  "/blog",
+  ...BLOG_POSTS.map((post) => post.href),
   ...contentRoutes(path.join(root, "src", "content", "articles"), "articles"),
   ...contentRoutes(path.join(root, "src", "content", "projects"), "projects"),
 ].sort();

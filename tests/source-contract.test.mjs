@@ -80,7 +80,11 @@ test("unknown routes render a real 404 state", async () => {
   const source = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
 
   assert.match(source, /function NotFoundPage\(/);
-  assert.match(source, /const isNotFound = pathname !== "\/" && \(!contentRoute \|\| !readerOpen\)/);
+  assert.match(source, /const isNotFound = pathname !== "\/" && !blogOpen && \(!contentRoute \|\| !readerOpen\)/);
+  assert.match(source, /function parseBlogRoute\(/);
+  assert.match(source, /function isBlogRoute\(/);
+  assert.match(source, /const blogOpen = blogRoute\?\.view === "index" \|\| Boolean\(activeBlogPost\)/);
+  assert.match(source, /getBlogPostBySlug\(route\.slug\)/);
   assert.match(source, /\{isNotFound \? <div[\s\S]*?<NotFoundPage path=\{pathname\}/);
   assert.doesNotMatch(source, /if \(!contentRoute \|\| readerOpen\) return/);
 });
@@ -96,7 +100,7 @@ test("Three.js uses one cached lazy module behind the readiness gate", async () 
   assert.match(appSource, /const LazyAsteroidScene = lazy\(loadAsteroidSceneModule\)/);
   assert.match(appSource, /<LazyAsteroidScene onProgress=\{onProgress\} onReady=\{onReady\}/);
   assert.match(appSource, /const bootReady = sceneReadyForPage && criticalLoadMatchesPage && criticalLoad\.ready && readerContentReady/);
-  assert.match(appSource, /const sceneEnabled = true/);
+  assert.match(appSource, /const sceneEnabled = !blogOpen && !isNotFound/);
   assert.match(sceneSource, /renderer\.setClearColor\(0x000000, 0\)/);
   assert.match(sceneSource, /renderer\.setClearAlpha\(0\)/);
   assert.doesNotMatch(appSource, /from "three"/);
@@ -111,8 +115,8 @@ test("boot completion follows verified scene and page resource progress", async 
   ]);
 
   assert.match(appSource, /const bootReady = sceneReadyForPage && criticalLoadMatchesPage && criticalLoad\.ready && readerContentReady/);
-  assert.match(appSource, /const sceneReadyForPage = isNotFound \|\| sceneLoad\.ready/);
-  assert.match(appSource, /images: isNotFound\s*\? \[\]/);
+  assert.match(appSource, /const sceneReadyForPage = isNotFound \|\| blogOpen \|\| sceneLoad\.ready/);
+  assert.match(appSource, /images: isNotFound\s*\? \[\]\s*:\s*blogOpen \? \[\]/);
   assert.match(appSource, /progress=\{bootProgress\}/);
   assert.match(appSource, /localizedProjects\.map\(\(project\) => project\.cover\)/);
   assert.match(appSource, /<ArticleReader article=\{activeArticle\} interactive=\{!booting\}/);

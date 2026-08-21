@@ -19,13 +19,16 @@ import {
 } from "./content/articles/index.js";
 import { profile, profileEn, technologyGroups } from "./content/profile.js";
 import { getProjects, projects } from "./content/projects/index.js";
+import { getBlogPostBySlug } from "./content/blogPosts.js";
 import { LocaleProvider, useLocale } from "./i18n.jsx";
 import { PortfolioJourney } from "./PortfolioJourney.jsx";
 import { getPortfolioJourneyMetrics } from "./portfolioJourneyTimeline.js";
 import { VibeCodingOpening } from "./VibeCodingIntro.jsx";
 import { VibeBootLoader } from "./VibeBootLoader.jsx";
 import StarField from "./StarField.jsx";
+import { BlogCornerGateway } from "./BlogCornerGateway.jsx";
 import { subscribeCriticalResources } from "./criticalResourceLoader.js";
+import { handlePageAnchorClick } from "./pageAnchorNavigation.js";
 
 let asteroidSceneModulePromise;
 const loadAsteroidSceneModule = () => {
@@ -58,9 +61,28 @@ const loadMarkdownContentModule = () => {
   return markdownContentModulePromise;
 };
 const LazyMarkdownContent = lazy(loadMarkdownContentModule);
+let blogPageModulePromise;
+const loadBlogPageModule = () => {
+  blogPageModulePromise ??= import("./BlogPage.jsx").catch((error) => {
+    blogPageModulePromise = undefined;
+    throw error;
+  });
+  return blogPageModulePromise;
+};
+const LazyBlogPage = lazy(loadBlogPageModule);
+let blogPostPageModulePromise;
+const loadBlogPostPageModule = () => {
+  blogPostPageModulePromise ??= import("./BlogPostPage.jsx").catch((error) => {
+    blogPostPageModulePromise = undefined;
+    throw error;
+  });
+  return blogPostPageModulePromise;
+};
+const LazyBlogPostPage = lazy(loadBlogPostPageModule);
 const INTRO_SESSION_KEY = "maple-vibe-opening-v1";
 const HARD_RELOAD_INTENT_KEY = "maple-vibe-hard-reload-intent";
 const HARD_RELOAD_INTENT_TTL_MS = 15000;
+const BLOG_PATH = "/blog";
 
 const sectionRailItems = [
   { id: "top", number: "01" },
@@ -91,6 +113,25 @@ function contentRoutePath(type, id) {
   return `/${collection}/${encodeURIComponent(id)}`;
 }
 
+function parseBlogRoute(pathname = window.location.pathname) {
+  const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+  if (normalized === BLOG_PATH) return { view: "index", slug: null };
+
+  const match = normalized.match(/^\/blog\/([^/]+)$/);
+  if (!match) return null;
+  try {
+    return { view: "post", slug: decodeURIComponent(match[1]) };
+  } catch {
+    return null;
+  }
+}
+
+function isBlogRoute(pathname = window.location.pathname) {
+  const route = parseBlogRoute(pathname);
+  return route?.view === "index"
+    || (route?.view === "post" && Boolean(getBlogPostBySlug(route.slug)));
+}
+
 function canUseProjectViewTransition(sourceElement) {
   if (!sourceElement?.isConnected || typeof document.startViewTransition !== "function") return false;
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
@@ -101,103 +142,6 @@ function canUseProjectViewTransition(sourceElement) {
     && rect.right > 0
     && rect.top < window.innerHeight
     && rect.left < window.innerWidth;
-}
-
-let pageAnchorAnimationFrame = 0;
-let cancelPageAnchorAnimation = () => {};
-
-function animatePageAnchor(target) {
-  cancelPageAnchorAnimation();
-
-  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if (reducedMotion) {
-    target.scrollIntoView({ behavior: "auto", block: "start" });
-    return;
-  }
-
-  const startY = window.scrollY;
-  const maxY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-  const targetY = Math.min(maxY, Math.max(0, startY + target.getBoundingClientRect().top));
-  const distance = targetY - startY;
-  if (Math.abs(distance) < 1) return;
-
-  const duration = Math.min(1800, Math.max(1050, 1000 + Math.abs(distance) * 0.08));
-  const startedAt = performance.now();
-  const cancelEvents = ["wheel", "touchstart", "pointerdown"];
-  const cancelKeys = new Set([
-    "ArrowDown",
-    "ArrowUp",
-    "End",
-    "Home",
-    "PageDown",
-    "PageUp",
-    " ",
-  ]);
-  let active = true;
-
-  const cleanup = () => {
-    if (!active) return;
-    active = false;
-    window.cancelAnimationFrame(pageAnchorAnimationFrame);
-    pageAnchorAnimationFrame = 0;
-    cancelEvents.forEach((type) => window.removeEventListener(type, cleanup));
-    window.removeEventListener("keydown", handleKeydown);
-    cancelPageAnchorAnimation = () => {};
-  };
-  const handleKeydown = (event) => {
-    if (cancelKeys.has(event.key)) cleanup();
-  };
-  const easeInOutCubic = (progress) => (
-    progress < 0.5
-      ? 4 * progress * progress * progress
-      : 1 - ((-2 * progress + 2) ** 3) / 2
-  );
-  const tick = (now) => {
-    if (!active) return;
-    const progress = Math.min(1, (now - startedAt) / duration);
-    window.scrollTo(0, startY + distance * easeInOutCubic(progress));
-    if (progress >= 1) {
-      cleanup();
-      return;
-    }
-    pageAnchorAnimationFrame = window.requestAnimationFrame(tick);
-  };
-
-  cancelPageAnchorAnimation = cleanup;
-  cancelEvents.forEach((type) => window.addEventListener(type, cleanup, { passive: true }));
-  window.addEventListener("keydown", handleKeydown);
-  pageAnchorAnimationFrame = window.requestAnimationFrame(tick);
-}
-
-function handlePageAnchorClick(event) {
-  if (
-    event.defaultPrevented
-    || event.button !== 0
-    || event.metaKey
-    || event.ctrlKey
-    || event.shiftKey
-    || event.altKey
-  ) return;
-
-  const anchor = event.currentTarget;
-  const hash = anchor.hash || anchor.getAttribute("href");
-  if (!hash?.startsWith("#")) return;
-
-  let targetId;
-  try {
-    targetId = decodeURIComponent(hash.slice(1));
-  } catch {
-    return;
-  }
-  const target = document.getElementById(targetId);
-  if (!target) return;
-
-  event.preventDefault();
-  if (window.location.hash !== hash) {
-    const nextUrl = `${window.location.pathname}${window.location.search}${hash}`;
-    window.history.pushState({ ...(window.history.state || {}) }, "", nextUrl);
-  }
-  animatePageAnchor(target);
 }
 
 function useScrollProgress() {
@@ -1032,7 +976,7 @@ function AppContent() {
   const [pathname, setPathname] = useState(() => window.location.pathname);
   const [wechatOpen, setWechatOpen] = useState(false);
   const [hardReloadIntent] = useState(hasFreshHardReloadIntent);
-  const [booting, setBooting] = useState(true);
+  const [booting, setBooting] = useState(() => !isBlogRoute(window.location.pathname));
   const [sceneLoad, setSceneLoad] = useState({
     status: "LOADING SPACE RUNTIME",
     progress: 0,
@@ -1056,13 +1000,16 @@ function AppContent() {
     )
   ));
   const contentRoute = parseContentRoute(pathname);
+  const blogRoute = parseBlogRoute(pathname);
+  const activeBlogPost = blogRoute?.view === "post" ? getBlogPostBySlug(blogRoute.slug) : null;
+  const blogOpen = blogRoute?.view === "index" || Boolean(activeBlogPost);
   const activeArticle = contentRoute?.type === "article" ? localizedArticles.find((article) => article.id === contentRoute.id) || null : null;
   const activeProject = contentRoute?.type === "project" ? localizedProjects.find((project) => project.id === contentRoute.id) || null : null;
   const activeContentItem = activeArticle || activeProject;
   const activeContentKey = contentRoute && activeContentItem ? `${locale}:${contentRoute.type}:${activeContentItem.id}` : null;
   const criticalPageKey = `page:${locale}:${pathname}`;
   const readerOpen = Boolean(activeArticle || activeProject);
-  const isNotFound = pathname !== "/" && (!contentRoute || !readerOpen);
+  const isNotFound = pathname !== "/" && !blogOpen && (!contentRoute || !readerOpen);
   const wechatDialogOpen = pathname === "/" && wechatOpen;
   const [readerContentReadyKey, setReaderContentReadyKey] = useState(null);
   const markReaderContentReady = useCallback(() => {
@@ -1077,17 +1024,19 @@ function AppContent() {
 
   useEffect(() => subscribeCriticalResources({
     key: criticalPageKey,
-    label: activeContentItem ? "LOADING READER ASSETS" : "LOADING PROJECT MEDIA",
+    label: activeContentItem
+      ? "LOADING READER ASSETS"
+      : activeBlogPost ? "LOADING BLOG POST" : blogOpen ? "LOADING BLOG" : "LOADING PROJECT MEDIA",
     images: isNotFound
       ? []
-      : [
+      : blogOpen ? [] : [
           ...localizedProjects.map((project) => project.cover),
           ...(activeContentItem?.images ?? []),
         ],
     loaders: activeContentItem
       ? [loadMarkdownContentModule, activeContentItem.loadBody]
-      : [],
-  }, setCriticalLoad), [activeContentItem, criticalPageKey, isNotFound, localizedProjects]);
+      : activeBlogPost ? [loadBlogPostPageModule] : blogOpen ? [loadBlogPageModule] : [],
+  }, setCriticalLoad), [activeBlogPost, activeContentItem, blogOpen, criticalPageKey, isNotFound, localizedProjects]);
 
   useLayoutEffect(() => {
     if (pathname !== "/" && wechatOpen) setWechatOpen(false);
@@ -1102,9 +1051,25 @@ function AppContent() {
   const readerClosePendingRef = useRef(false);
   const articleTriggerRef = useRef(null);
   const wechatTriggerRef = useRef(null);
+  const blogGatewayTriggerRef = useRef(null);
+  const pendingBlogReturnScrollYRef = useRef(null);
+  const restoreBlogGatewayFocusRef = useRef(false);
+  const pendingBlogIndexScrollYRef = useRef(null);
+  const blogPostTriggerKeyRef = useRef(null);
   const pathnameRef = useRef(pathname);
   pathnameRef.current = pathname;
   const [projectTransitionActive, setProjectTransitionActive] = useState(false);
+  const [blogGatewayTransitionActive, setBlogGatewayTransitionActive] = useState(false);
+
+  const prepareHomeScene = useCallback(() => {
+    setSceneLoad((current) => current.forceFallback ? current : {
+      status: "LOADING SPACE RUNTIME",
+      progress: 0,
+      ready: false,
+      forceFallback: false,
+    });
+    setBooting(true);
+  }, []);
 
   const restoreProjectTriggerFocus = useCallback(() => {
     window.requestAnimationFrame(() => {
@@ -1248,6 +1213,29 @@ function AppContent() {
 
       const nextPathname = window.location.pathname;
       const nextRoute = parseContentRoute(nextPathname);
+      const nextBlogRoute = parseBlogRoute(nextPathname);
+      const nextBlogPost = nextBlogRoute?.view === "post"
+        ? getBlogPostBySlug(nextBlogRoute.slug)
+        : null;
+      const nextBlogIsValid = nextBlogRoute?.view === "index" || Boolean(nextBlogPost);
+      const previousBlogRoute = parseBlogRoute(pathnameRef.current);
+      if (nextBlogIsValid) {
+        if (previousBlogRoute?.view === "post" && nextBlogRoute?.view === "index") {
+          const storedIndexScrollY = Number(event.state?.blogIndexReturnY);
+          pendingBlogIndexScrollYRef.current = Number.isFinite(storedIndexScrollY)
+            ? storedIndexScrollY
+            : 0;
+        } else if (nextBlogRoute?.view === "post") {
+          pendingBlogIndexScrollYRef.current = null;
+        }
+        pendingBlogReturnScrollYRef.current = null;
+        restoreBlogGatewayFocusRef.current = false;
+        setBlogGatewayTransitionActive(false);
+        setBooting(false);
+        setPathname(nextPathname);
+        readerClosePendingRef.current = false;
+        return;
+      }
       if (activeRuntimeAtNavigation?.direction === "closing") {
         const context = projectTransitionContextRef.current;
         if (nextRoute?.type === "project" && nextRoute.id === context?.projectId) {
@@ -1257,6 +1245,21 @@ function AppContent() {
         }
       }
       const previousRoute = parseContentRoute(pathnameRef.current);
+      const previousWasBlog = isBlogRoute(pathnameRef.current);
+      if (previousWasBlog && nextPathname === "/") {
+        const storedReturnScrollY = Number(event.state?.blogReturnY);
+        pendingBlogReturnScrollYRef.current = Number.isFinite(storedReturnScrollY)
+          ? storedReturnScrollY
+          : 0;
+        restoreBlogGatewayFocusRef.current = true;
+        pendingBlogIndexScrollYRef.current = null;
+        blogPostTriggerKeyRef.current = null;
+        setBlogGatewayTransitionActive(false);
+        prepareHomeScene();
+        setPathname(nextPathname);
+        readerClosePendingRef.current = false;
+        return;
+      }
       const returningFromReader = Boolean(previousRoute) && nextPathname === "/";
       if (returningFromReader) {
         const storedReturnScrollY = Number(event.state?.contentReturnY);
@@ -1305,7 +1308,7 @@ function AppContent() {
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
-  }, [restoreProjectTriggerFocus, restoreReaderReturnPosition, runProjectViewTransition, scrollToCurrentHash]);
+  }, [prepareHomeScene, restoreProjectTriggerFocus, restoreReaderReturnPosition, runProjectViewTransition, scrollToCurrentHash]);
 
   useEffect(() => {
     if (!readerOpen) readerClosePendingRef.current = false;
@@ -1314,12 +1317,56 @@ function AppContent() {
   useEffect(() => {
     if (booting) return;
     if (pathname !== "/") return;
+    if (Number.isFinite(pendingBlogReturnScrollYRef.current)) {
+      const returnScrollY = pendingBlogReturnScrollYRef.current;
+      pendingBlogReturnScrollYRef.current = null;
+      let secondFrame = 0;
+      const firstFrame = window.requestAnimationFrame(() => {
+        secondFrame = window.requestAnimationFrame(() => {
+          window.scrollTo({ top: returnScrollY, behavior: "auto" });
+          if (restoreBlogGatewayFocusRef.current) {
+            restoreBlogGatewayFocusRef.current = false;
+            blogGatewayTriggerRef.current?.focus({ preventScroll: true });
+          }
+        });
+      });
+      return () => {
+        window.cancelAnimationFrame(firstFrame);
+        window.cancelAnimationFrame(secondFrame);
+      };
+    }
     if (skipHashRestoreRef.current) {
       skipHashRestoreRef.current = false;
       return;
     }
     scrollToCurrentHash();
   }, [booting, pathname, scrollToCurrentHash]);
+
+  useEffect(() => {
+    if (parseBlogRoute(pathname)?.view !== "index"
+      || !Number.isFinite(pendingBlogIndexScrollYRef.current)) return undefined;
+    const returnScrollY = pendingBlogIndexScrollYRef.current;
+    pendingBlogIndexScrollYRef.current = null;
+    let frame = 0;
+    let attempts = 0;
+
+    const restore = () => {
+      const blogPage = document.querySelector(".blog-page");
+      if (!blogPage && attempts < 120) {
+        attempts += 1;
+        frame = window.requestAnimationFrame(restore);
+        return;
+      }
+      window.scrollTo({ top: returnScrollY, behavior: "auto" });
+      const triggerKey = blogPostTriggerKeyRef.current;
+      blogPostTriggerKeyRef.current = null;
+      if (!triggerKey) return;
+      document.querySelector(`[data-blog-post-entry="${triggerKey}"]`)?.focus({ preventScroll: true });
+    };
+
+    frame = window.requestAnimationFrame(restore);
+    return () => window.cancelAnimationFrame(frame);
+  }, [pathname]);
 
   const openContent = useCallback((type, id) => {
     const contentItem = (type === "article" ? localizedArticles : localizedProjects)
@@ -1356,7 +1403,80 @@ function AppContent() {
   const goHome = useCallback(() => {
     readerClosePendingRef.current = false;
     window.history.replaceState(null, "", "/");
+    prepareHomeScene();
     setPathname("/");
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [prepareHomeScene]);
+
+  const primeBlog = useCallback(() => loadBlogPageModule(), []);
+
+  const openBlog = useCallback(() => {
+    if (pathnameRef.current !== "/" || projectTransitionActiveRef.current) return;
+    const returnScrollY = window.scrollY;
+    const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    window.history.replaceState(
+      { ...(window.history.state || {}), blogReturnY: returnScrollY },
+      "",
+      currentUrl,
+    );
+    window.history.pushState({ blogOverlay: true }, "", BLOG_PATH);
+    pendingBlogReturnScrollYRef.current = null;
+    restoreBlogGatewayFocusRef.current = false;
+    pendingBlogIndexScrollYRef.current = null;
+    blogPostTriggerKeyRef.current = null;
+    setBooting(false);
+    flushSync(() => setPathname(BLOG_PATH));
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, []);
+
+  const closeBlog = useCallback(() => {
+    if (window.history.state?.blogOverlay) {
+      window.history.back();
+      return;
+    }
+    pendingBlogReturnScrollYRef.current = 0;
+    restoreBlogGatewayFocusRef.current = false;
+    pendingBlogIndexScrollYRef.current = null;
+    blogPostTriggerKeyRef.current = null;
+    window.history.replaceState(null, "", "/");
+    prepareHomeScene();
+    setPathname("/");
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [prepareHomeScene]);
+
+  const openBlogPost = useCallback((slug, triggerElement) => {
+    const post = getBlogPostBySlug(slug);
+    const currentBlogRoute = parseBlogRoute(pathnameRef.current);
+    if (!post || !currentBlogRoute || post.slug === currentBlogRoute.slug) return;
+    void loadBlogPostPageModule().catch(() => {});
+    if (currentBlogRoute.view === "index") {
+      const returnScrollY = window.scrollY;
+      const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      pendingBlogIndexScrollYRef.current = null;
+      blogPostTriggerKeyRef.current = triggerElement?.dataset.blogPostEntry ?? null;
+      window.history.replaceState(
+        { ...(window.history.state || {}), blogIndexReturnY: returnScrollY },
+        "",
+        currentUrl,
+      );
+    }
+    window.history.pushState({ blogPostOverlay: true }, "", post.href);
+    setBooting(false);
+    setPathname(post.href);
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, []);
+
+  const closeBlogPost = useCallback(() => {
+    if (window.history.state?.blogPostOverlay) {
+      window.history.back();
+      return;
+    }
+    pendingBlogIndexScrollYRef.current = 0;
+    blogPostTriggerKeyRef.current = null;
+    void loadBlogPageModule().catch(() => {});
+    window.history.replaceState(null, "", BLOG_PATH);
+    setBooting(false);
+    setPathname(BLOG_PATH);
     window.scrollTo({ top: 0, behavior: "auto" });
   }, []);
 
@@ -1442,8 +1562,8 @@ function AppContent() {
   const criticalLoadMatchesPage = criticalLoad.key === criticalPageKey;
   const pageResourceProgress = criticalLoadMatchesPage ? criticalLoad.progress : 0;
   const readerContentReady = !activeContentKey || readerContentReadyKey === activeContentKey;
-  const sceneReadyForPage = isNotFound || sceneLoad.ready;
-  const sceneProgressForPage = isNotFound ? 1 : sceneLoad.progress;
+  const sceneReadyForPage = isNotFound || blogOpen || sceneLoad.ready;
+  const sceneProgressForPage = isNotFound || blogOpen ? 1 : sceneLoad.progress;
   const bootReady = sceneReadyForPage && criticalLoadMatchesPage && criticalLoad.ready && readerContentReady;
   const bootProgress = sceneProgressForPage * 0.58 + pageResourceProgress * 0.42;
   const bootStatus = !sceneReadyForPage
@@ -1451,17 +1571,19 @@ function AppContent() {
     : !criticalLoadMatchesPage ? "LOADING PAGE ASSETS" : !criticalLoad.ready ? criticalLoad.status : criticalLoad.degraded
       ? criticalLoad.status
       : !readerContentReady ? "RENDERING READER" : sceneLoad.status;
-  const sceneEnabled = true;
+  const sceneEnabled = !blogOpen && !isNotFound;
   const sceneSuspended = readerOpen
     || wechatDialogOpen
+    || blogGatewayTransitionActive
     || (projectTransitionActive && projectTransitionDirectionRef.current === "closing");
   const homeIsInert = booting
     || readerOpen
     || wechatDialogOpen
+    || blogGatewayTransitionActive
     || (projectTransitionActive && projectTransitionDirectionRef.current === "closing");
 
   return <>
-    {booting && <VibeBootLoader
+    {booting && !blogOpen && <VibeBootLoader
       ready={bootReady}
       progress={bootProgress}
       status={bootStatus}
@@ -1470,6 +1592,19 @@ function AppContent() {
     />}
     {isNotFound ? <div aria-hidden={booting ? "true" : undefined} inert={booting ? true : undefined}>
       <NotFoundPage path={pathname} onGoHome={goHome} />
+    </div> : blogOpen ? <div>
+      <Suspense fallback={<main className="blog-page blog-page--loading" aria-hidden="true" />}>
+        {activeBlogPost ? <LazyBlogPostPage
+          post={activeBlogPost}
+          onBack={closeBlogPost}
+          onOpenPost={openBlogPost}
+          focusOnMount={Boolean(window.history.state?.blogPostOverlay)}
+        /> : <LazyBlogPage
+          onBack={closeBlog}
+          onOpenPost={openBlogPost}
+          focusOnMount={Boolean(window.history.state?.blogOverlay)}
+        />}
+      </Suspense>
     </div> : <>
       <main id="top" aria-hidden={homeIsInert ? "true" : undefined} inert={homeIsInert ? true : undefined}>
         <VibeCodingOpening
@@ -1491,6 +1626,7 @@ function AppContent() {
             active={!introActive && !booting}
             suspended={readerOpen
               || wechatDialogOpen
+              || blogGatewayTransitionActive
               || (projectTransitionActive && projectTransitionDirectionRef.current === "closing")}
             projects={localizedProjects}
             onOpenProject={openProject}
@@ -1546,5 +1682,17 @@ function AppContent() {
       <ArticleReader article={activeArticle} interactive={!booting} onClose={closeContent} onContentReady={markReaderContentReady} restoreFocusRef={articleTriggerRef} />
       <ProjectReader project={activeProject} interactive={!booting} onClose={closeContent} onContentReady={markReaderContentReady} />
     </>}
+    <BlogCornerGateway
+      active={pathname === "/"
+        && !booting
+        && !introActive
+        && !readerOpen
+        && !wechatDialogOpen
+        && !projectTransitionActive}
+      onEnter={openBlog}
+      onPrime={primeBlog}
+      onTransitionChange={setBlogGatewayTransitionActive}
+      triggerRef={blogGatewayTriggerRef}
+    />
   </>;
 }
